@@ -1,0 +1,27 @@
+src/
+├── components/
+│   ├── ui/
+│   │   └── forms/
+│   │       ├── CustomInput/
+│   │       │   ├── CustomInput.tsx
+│   │       │   ├── types.ts
+│   │       │   └── index.ts
+│   │       └── CustomButton/
+│   │           ├── CustomButton.tsx
+│   │           ├── types.ts
+│   │           └── index.ts
+│   └── layout/
+│       └── AuthLayout/
+│           ├── AuthLayout.tsx
+│           ├── AuthLayout.module.css
+│           └── index.ts
+├── pages/
+│   └── Login/
+│       ├── Login.tsx
+│       ├── Login.module.css
+│       └── index.ts
+├── types/
+│   └── forms.ts
+└── App.tsx
+
+comment creez ces fichiers maintenant
