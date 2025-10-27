@@ -4,7 +4,6 @@ import { Column } from 'primereact/column';
 import { Card } from 'primereact/card';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
-import { ConfirmDialog } from 'primereact/confirmdialog';
 import FavorisService from '../services/FavorisService';
 import type { IntervenantFavori } from '../services/FavorisService';
 
@@ -99,7 +98,6 @@ const FavorisIntervenant: React.FC<Props> = ({ ecoleId }) => {
         <div className="grid">
             <div className="col-12">
                 <Toast ref={toast} />
-                <ConfirmDialog />
 
                 <Card title="Mes Intervenants Favoris" className="shadow-2">
                     <DataTable
