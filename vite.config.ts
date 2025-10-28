@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     allowedHosts: [
       'localhost',
-      'investing-bosnia-southeast-normal.trycloudflare.com' //frontend --
+      ' vizion-academy.pages.dev' //frontend --
     ]
   }
 });
