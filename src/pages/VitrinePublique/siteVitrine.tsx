@@ -147,7 +147,7 @@ const SiteVitrine = () => {
         );
     };
 
-    const start = <span className="text-xl font-bold text-blue-500">EduChallenge</span>;
+    const start = <span className="text-xl font-bold text-blue-500">vizion academy</span>;
 
     // Fonction pour la connexion en tant qu'école
     const handleLoginEcole = () => {
@@ -171,7 +171,7 @@ const SiteVitrine = () => {
                     {/* Onglet Accueil */}
                     <TabPanel header="Accueil">
                         <div className="text-center p-4 bg-blue-500 text-white border-round mb-4">
-                            <h1 className="text-4xl font-bold mb-3">EduChallenge</h1>
+                            <h1 className="text-4xl font-bold mb-3">vizion academy</h1>
                             <p className="text-xl">Plateforme d'Intervenants Pédagogiques</p>
                             <p className="mt-3 text-lg">Accédez à nos espaces principaux</p>
                         </div>
@@ -495,10 +495,10 @@ const SiteVitrine = () => {
             {/* Pied de page */}
             <div className="bg-gray-900 text-white p-4 text-center mt-4">
                 <div className="flex justify-content-center align-items-center gap-2 mb-2">
-                    <span className="text-xl font-bold text-blue-300">EduChallenge</span>
+                    <span className="text-xl font-bold text-blue-300">vizion academy</span>
                 </div>
                 <p className="text-sm">Plateforme d'intervenants pédagogiques et de challenges d'apprentissage</p>
-                <p className="text-xs mt-2">&copy; 2023 EduChallenge. Tous droits réservés.</p>
+                <p className="text-xs mt-2">&copy; 2025 vizion academy. Tous droits réservés.</p>
             </div>
         </div>
     );
