@@ -18,15 +18,10 @@ interface Facture {
     statut: string;
 }
 
-interface Favori {
-    id_intervenant: string;
-}
-
 const API_URL = import.meta.env.VITE_API_URL;
 
 const FactureList: React.FC = () => {
     const [factures, setFactures] = useState<Facture[]>([]);
-    const [favoris, setFavoris] = useState<Favori[]>([]);
     const [loading, setLoading] = useState(true);
     const toast = React.useRef<Toast>(null);
 
@@ -50,6 +45,12 @@ const FactureList: React.FC = () => {
                 if (data.success) setFactures(data.data || []);
             } catch (error) {
                 console.error('Erreur chargement factures :', error);
+                toast.current?.show({
+                    severity: 'error',
+                    summary: 'Erreur',
+                    detail: 'Impossible de charger les factures',
+                    life: 3000,
+                });
             } finally {
                 setLoading(false);
             }
@@ -57,84 +58,6 @@ const FactureList: React.FC = () => {
 
         fetchFactures();
     }, []);
-
-    // Charger les favoris
-    useEffect(() => {
-        const fetchFavoris = async () => {
-            const ecoleId = getEcoleConnecteeId();
-            if (!ecoleId) return;
-
-            try {
-                const response = await fetch(`${API_URL}/api/intervenants/favoris/${ecoleId}`);
-                const data = await response.json();
-                if (data.success) setFavoris(data.data || []);
-            } catch (error) {
-                console.error('Erreur chargement favoris :', error);
-            }
-        };
-
-        fetchFavoris();
-    }, []);
-
-    // Vérifie si un intervenant est en favoris
-    const isFavori = (intervenantId: string) => {
-        return favoris.some(f => f.id_intervenant === intervenantId);
-    };
-
-    // Ajouter ou retirer un favori
-    const toggleFavori = async (intervenantId: string) => {
-        const ecoleId = getEcoleConnecteeId();
-        if (!ecoleId) return;
-
-        const dejaFavori = isFavori(intervenantId);
-        const method = dejaFavori ? 'DELETE' : 'POST';
-        const endpoint = dejaFavori
-            ? `${API_URL}/api/intervenants/favoris/remove`
-            : `${API_URL}/api/intervenants/favoris/add`;
-
-        try {
-            const response = await fetch(endpoint, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ecole_id: ecoleId, intervenant_id: intervenantId }),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Mise à jour de la liste des favoris localement sans rechargement
-                setFavoris(prev =>
-                    dejaFavori
-                        ? prev.filter(f => f.id_intervenant !== intervenantId)
-                        : [...prev, { id_intervenant: intervenantId }]
-                );
-
-                toast.current?.show({
-                    severity: dejaFavori ? 'warn' : 'success',
-                    summary: dejaFavori ? 'Retiré' : 'Ajouté',
-                    detail: dejaFavori
-                        ? 'Intervenant retiré des favoris'
-                        : 'Intervenant ajouté aux favoris',
-                    life: 2000,
-                });
-            } else {
-                toast.current?.show({
-                    severity: 'error',
-                    summary: 'Erreur',
-                    detail: data.message || 'Impossible de modifier les favoris',
-                    life: 3000,
-                });
-            }
-        } catch (error) {
-            console.error('Erreur lors du toggle favori :', error);
-            toast.current?.show({
-                severity: 'error',
-                summary: 'Erreur',
-                detail: 'Problème de connexion avec le serveur',
-                life: 3000,
-            });
-        }
-    };
 
     // Statut coloré
     const statutTemplate = (rowData: Facture) => {
@@ -156,19 +79,6 @@ const FactureList: React.FC = () => {
             style: 'currency',
             currency: 'EUR'
         }).format(montant);
-    };
-
-    // Étoile jaune cliquable
-    const favoriTemplate = (rowData: Facture) => {
-        const favori = isFavori(rowData.intervenant_id);
-        return (
-            <i
-                className={`pi ${favori ? 'pi-star-fill' : 'pi-star'} text-yellow-500 cursor-pointer`}
-                onClick={() => toggleFavori(rowData.intervenant_id)}
-                style={{ fontSize: '1.5rem' }}
-                title={favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            />
-        );
     };
 
     return (
@@ -205,7 +115,6 @@ const FactureList: React.FC = () => {
                     sortable 
                 />
                 <Column field="statut" header="Statut" body={statutTemplate} sortable />
-                <Column header="Favori" body={favoriTemplate} />
             </DataTable>
         </div>
     );

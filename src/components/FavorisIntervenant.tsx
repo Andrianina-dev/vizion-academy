@@ -1,130 +1,65 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { Card } from 'primereact/card';
-import { Tag } from 'primereact/tag';
-import { Toast } from 'primereact/toast';
-import FavorisService from '../services/FavorisService';
-import type { IntervenantFavori } from '../services/FavorisService';
+import axios from 'axios';
+import { getIdEcoleConnectee } from '../services/ecoleService';
 
-interface Props {
-    ecoleId: string;
+const API_URL = import.meta.env.VITE_API_URL;
+
+interface Intervenant {
+  nom_intervenant: string;
+  prenom_intervenant: string;
+  domaines: string; // {informatique,devops}
+  titre: string;
+  nom_ecole: string;
 }
 
-const FavorisIntervenant: React.FC<Props> = ({ ecoleId }) => {
-    const [intervenants, setIntervenants] = useState<IntervenantFavori[]>([]);
-    const [loading, setLoading] = useState(false);
-    const toast = useRef<Toast>(null);
+interface FavorisIntervenantProps {
+  ecoleId?: string;
+}
 
-    useEffect(() => {
-        if (ecoleId) loadIntervenants();
-    }, [ecoleId]);
+const FavorisIntervenant: React.FC<FavorisIntervenantProps> = ({ ecoleId }) => {
+  const [intervenants, setIntervenants] = useState<Intervenant[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const loadIntervenants = async () => {
-        setLoading(true);
-        try {
-            const response = await FavorisService.getIntervenantsFavoris(ecoleId);
-            if (response.success) {
-                const data = response.data ?? [];
-                const formatted = data.map(i => ({
-                    ...i,
-                    nom_complet: `${i.nom_intervenant} ${i.prenom_intervenant}`,
-                    domaines: i.domaines ?? [],
-                    langues: i.langues ?? [],
-                    is_favori: true,
-                    has_collaborated: false
-                }));
-                setIntervenants(formatted);
-            } else {
-                toast.current?.show({
-                    severity: 'error',
-                    summary: 'Erreur',
-                    detail: 'Impossible de charger les favoris',
-                    life: 5000
-                });
-            }
-        } catch (error) {
-            toast.current?.show({
-                severity: 'error',
-                summary: 'Erreur',
-                detail: 'Erreur de connexion au serveur',
-                life: 5000
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+  const getEcoleConnecteeId = (): string => {
+    return ecoleId || getIdEcoleConnectee() || '';
+  };
 
-    const photoTemplate = (row: IntervenantFavori) => (
-        <img
-            src={row.photo_intervenant || '/default-avatar.png'}
-            alt={row.nom_complet}
-            className="w-3rem h-3rem border-circle shadow-2"
-            onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
-        />
-    );
+  useEffect(() => {
+    const id = getEcoleConnecteeId();
+    if (!id) return;
 
-    const domainesTemplate = (row: IntervenantFavori) => (
-        <div className="flex flex-wrap gap-1">
-            {(row.domaines ?? []).slice(0, 2).map((d, i) => (
-                <Tag key={i} value={d} severity="info" className="text-xs" />
-            ))}
-            {row.domaines && row.domaines.length > 2 && (
-                <Tag value={`+${row.domaines.length - 2}`} severity="warning" className="text-xs" />
-            )}
-        </div>
-    );
+    setLoading(true);
+    axios.get(`${API_URL}/api/intervenants/favoris/${id}`)
+      .then(res => setIntervenants(res.data))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [ecoleId]);
 
-    const languesTemplate = (row: IntervenantFavori) => (
-        <div className="flex flex-wrap gap-1">
-            {(row.langues ?? []).slice(0, 2).map((l, i) => (
-                <Tag key={i} value={l} severity="success" className="text-xs" />
-            ))}
-            {row.langues && row.langues.length > 2 && (
-                <Tag value={`+${row.langues.length - 2}`} severity="success" className="text-xs" />
-            )}
-        </div>
-    );
+  // Supprimer les accolades pour l'affichage
+  const domainesBodyTemplate = (rowData: Intervenant) => {
+    return rowData.domaines.replace(/^{|}$/g, ''); // supprime { et }
+  };
 
-    const disponibiliteTemplate = (row: IntervenantFavori) => (
-        row.disponibilite ? (
-            <Tag value="Disponible" severity="success" />
-        ) : (
-            <Tag value="Indisponible" severity="danger" />
-        )
-    );
-
-    return (
-        <div className="grid">
-            <div className="col-12">
-                <Toast ref={toast} />
-
-                <Card title="Mes Intervenants Favoris" className="shadow-2">
-                    <DataTable
-                        value={intervenants}
-                        loading={loading}
-                        paginator
-                        rows={10}
-                        rowsPerPageOptions={[5, 10, 25]}
-                        emptyMessage="Aucun intervenant trouvé"
-                        removableSort
-                        showGridlines
-                    >
-                        <Column header="Photo" body={photoTemplate} style={{ width: '80px' }} />
-                        <Column field="nom_complet" header="Nom" sortable />
-                        <Column field="ville" header="Ville" sortable />
-                        <Column header="Domaines" body={domainesTemplate} />
-                        <Column header="Langues" body={languesTemplate} />
-                        <Column header="Disponibilité" body={disponibiliteTemplate} sortable />
-                        <Column field="email_login" header="Email" />
-                        <Column field="diplome" header="Diplôme" />
-                        <Column field="cv" header="CV" />
-                        <Column field="video" header="Vidéo" />
-                    </DataTable>
-                </Card>
-            </div>
-        </div>
-    );
+  return (
+    <div className="p-4">
+      <h2>Intervenants déjà collaborés</h2>
+      <DataTable 
+        value={intervenants} 
+        paginator 
+        rows={5} 
+        loading={loading} 
+        emptyMessage="Aucun intervenant trouvé"
+      >
+        <Column field="nom_intervenant" header="Nom" sortable />
+        <Column field="prenom_intervenant" header="Prénom" sortable />
+        <Column field="domaines" header="Domaines" body={domainesBodyTemplate} sortable />
+        <Column field="titre" header="Mission" sortable />
+        <Column field="nom_ecole" header="École" sortable />
+      </DataTable>
+    </div>
+  );
 };
 
 export default FavorisIntervenant;
