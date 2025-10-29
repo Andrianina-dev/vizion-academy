@@ -15,6 +15,7 @@ interface CustomInputProps {
   icon?: string;
   className?: string;
   inputStyle?: React.CSSProperties;
+  size?: 'small' | 'medium' | 'large';
 }
 
 const CustomInput: React.FC<CustomInputProps> = ({
@@ -26,7 +27,8 @@ const CustomInput: React.FC<CustomInputProps> = ({
   error,
   icon,
   className = '',
-  inputStyle
+  inputStyle,
+  size = 'medium'
 }) => {
   const commonProps = {
     value,
@@ -35,7 +37,8 @@ const CustomInput: React.FC<CustomInputProps> = ({
     className: `w-full ${className}`,
   };
 
-  const inputClassName = "p-3 text-lg border-round surface-border";
+  const sizeClass = size === 'large' ? 'p-3 text-lg' : size === 'small' ? 'p-2 text-sm' : 'p-2';
+  const inputClassName = `w-full ${sizeClass} border-round surface-border`;
   const inputStyles = { 
     width: '100%', 
     padding: '0.75rem'
@@ -46,14 +49,15 @@ const CustomInput: React.FC<CustomInputProps> = ({
       return (
         <Password
           {...commonProps}
+          className={`w-full bg-white border-1 surface-border border-round overflow-hidden ${className}`}
           toggleMask
           feedback={false}
           inputStyle={{ ...inputStyles, ...inputStyle }}
-          inputClassName={inputClassName}
+          inputClassName={`w-full bg-transparent border-none ${sizeClass}`}
           pt={{
             root: { className: 'w-full' },
             input: { 
-              className: inputClassName,
+              className: `w-full bg-transparent border-none ${sizeClass}`,
               style: { width: '100%' }
             },
             panel: { className: 'w-full' }
