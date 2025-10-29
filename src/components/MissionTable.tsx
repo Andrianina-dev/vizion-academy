@@ -334,9 +334,8 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
                       }
                     }}
                     onBlur={() => {
-                      if (!newMission.duree || newMission.duree < 1) {
-                        setNewMission({ ...newMission, duree: 1 });
-                      }
+                      const corrected = !newMission.duree || newMission.duree < 1 ? 1 : newMission.duree;
+                      handleDureeChange(corrected);
                     }}
                     style={{ textAlign: 'center' }}
                   />
