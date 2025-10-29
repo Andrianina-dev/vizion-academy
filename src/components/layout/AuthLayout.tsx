@@ -18,7 +18,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
   subtitle, 
   variant = 'split', 
   showInfoPanel = true, 
-  footerText = '© 2024 Vizion Academy - Excellence Éducative' 
+  footerText = '© 2025 Vizion Academy - Excellence Éducative' 
 }) => {
   return (
     <div className="min-h-screen flex align-items-center justify-content-center p-3 relative overflow-hidden">

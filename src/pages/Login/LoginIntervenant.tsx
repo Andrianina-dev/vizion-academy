@@ -83,7 +83,7 @@ const LoginIntervenant: React.FC = () => {
       subtitle="Accès réservé aux intervenants pédagogiques"
       variant="split"
       showInfoPanel={true}
-      footerText="© 2024 Vizion Academy - Excellence Éducative"
+      footerText="© 2025 Vizion Academy - Excellence Éducative"
     >
       <form onSubmit={handleSubmit} className="flex flex-column gap-4 w-full">
         {loginError && (
