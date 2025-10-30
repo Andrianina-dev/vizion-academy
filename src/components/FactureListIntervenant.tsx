@@ -34,19 +34,7 @@ const FactureListIntervenant: React.FC = () => {
           setLoading(false);
           return;
         }
-        // 1) Tenter de générer automatiquement une facture depuis la dernière mission
-        try {
-          await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}/generate-latest`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-          });
-        } catch (e) {
-          // Ignorer silencieusement si aucune mission trouvée ou autre 4xx
-        }
-
-        // 2) Puis récupérer la liste des factures
+        // Récupérer la liste des factures (pas de génération côté front)
         const res = await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}`, {
           credentials: 'include',
         });
@@ -79,7 +67,10 @@ const FactureListIntervenant: React.FC = () => {
     return <Tag value={rowData.statut} severity={severity} />;
   };
 
+  const isValidId = (id: any) => (typeof id === 'string' && id.length > 0) || (typeof id === 'number' && id > 0);
+
   const openSidebar = async (facture: Facture) => {
+    if (!isValidId(facture.id_facture)) return;
     setFactureSelected(facture);
     setDisplaySidebar(true);
 
@@ -94,6 +85,7 @@ const FactureListIntervenant: React.FC = () => {
   };
 
   const downloadPDF = (id: string) => {
+    if (!isValidId(id)) return;
     window.open(`${API_URL}/api/factures/download/${id}`, '_blank');
   };
 
@@ -113,8 +105,8 @@ const FactureListIntervenant: React.FC = () => {
           header="Actions"
           body={(row) => (
             <div className="flex gap-2">
-              <Button label="Aperçu" icon="pi pi-eye" onClick={() => openSidebar(row)} />
-              <Button label="PDF" icon="pi pi-file-pdf" severity="danger" onClick={() => downloadPDF(row.id_facture)} />
+              <Button label="Aperçu" icon="pi pi-eye" onClick={() => openSidebar(row)} disabled={!isValidId(row.id_facture)} />
+              <Button label="PDF" icon="pi pi-file-pdf" severity="danger" onClick={() => downloadPDF(row.id_facture)} disabled={!isValidId(row.id_facture)} />
             </div>
           )}
         />
