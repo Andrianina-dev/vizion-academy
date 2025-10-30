@@ -4,6 +4,7 @@ import { Column } from 'primereact/column';
 import { Tag } from 'primereact/tag';
 import { Button } from 'primereact/button';
 import { Sidebar } from 'primereact/sidebar';
+import { getIdEcoleConnectee } from '../services/ecoleService';
 
 interface Facture {
     id_facture: string;
@@ -27,7 +28,14 @@ const FactureList: React.FC = () => {
     useEffect(() => {
         const fetchFactures = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/factures/ecole/ECL-1`);
+                const ecoleId = getIdEcoleConnectee();
+                if (!ecoleId) {
+                    setLoading(false);
+                    return;
+                }
+                const res = await fetch(`${API_URL}/api/factures/ecole/${ecoleId}`, {
+                    credentials: 'include',
+                });
                 const data = await res.json();
                 if (data.success) setFactures(data.data || []);
             } catch (error) {
@@ -48,11 +56,12 @@ const FactureList: React.FC = () => {
         new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(montant);
 
     const statutTemplate = (rowData: Facture) => {
+        const normalized = (rowData.statut || '').toLowerCase();
         const severity =
-            rowData.statut === 'payée' ? 'success' :
-            rowData.statut === 'en attente' ? 'warning' :
-            rowData.statut === 'en validation' ? 'info' :
-            'secondary';
+            normalized === 'payée' || normalized === 'payee' ? 'success' :
+                rowData.statut === 'en attente' ? 'warning' :
+                    rowData.statut === 'en validation' ? 'info' :
+                        'secondary';
         return <Tag value={rowData.statut} severity={severity} />;
     };
 
@@ -61,7 +70,7 @@ const FactureList: React.FC = () => {
         setDisplaySidebar(true);
 
         try {
-            const res = await fetch(`${API_URL}/api/factures/preview/${facture.id_facture}`);
+            const res = await fetch(`${API_URL}/api/factures/preview/${facture.id_facture}`, { credentials: 'include' });
             const data = await res.json();
             if (data.success) setFactureHTML(data.html);
             else setFactureHTML('<p>Impossible de charger l\'aperçu.</p>');

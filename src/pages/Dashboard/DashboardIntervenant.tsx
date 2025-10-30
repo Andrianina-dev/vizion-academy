@@ -11,10 +11,11 @@ import { ProgressBar } from 'primereact/progressbar';
 import { Sidebar } from 'primereact/sidebar';
 import { Menu } from 'primereact/menu';
 import type { MenuItem } from 'primereact/menuitem';
+import FactureListIntervenant from '../../components/FactureListIntervenant';
 
 const DashboardIntervenant: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [, setActiveSection] = useState('dashboard');
+  const [activeSection, setActiveSection] = useState('dashboard');
 
   // Données statiques (mock)
   const factures = [
@@ -178,6 +179,12 @@ const DashboardIntervenant: React.FC = () => {
 
       {/* Contenu Principal */}
       <div className="flex-1 overflow-auto">
+        {activeSection === 'factures' ? (
+          <div className="p-4 md:p-6">
+            <FactureListIntervenant />
+          </div>
+        ) : (
+          <>
         {/* Header Mobile avec bouton menu */}
         <div className="bg-white shadow-sm border-b border-gray-200 lg:hidden">
           <div className="p-4 flex align-items-center justify-content-between">
@@ -530,6 +537,8 @@ const DashboardIntervenant: React.FC = () => {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Sidebar Mobile */}
