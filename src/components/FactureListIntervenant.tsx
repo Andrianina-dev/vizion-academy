@@ -10,7 +10,9 @@ interface Facture {
   id_facture: string;
   titre_mission: string;
   nom_ecole: string;
-  montant: number;
+  montant_journalier?: number;
+  montant_calcule?: number;
+  duree?: number;
   date_creation: string;
   date_paiement: string | null;
   statut: string;
@@ -109,7 +111,9 @@ const FactureListIntervenant: React.FC = () => {
         <Column field="id_facture" header="ID" sortable />
         <Column field="titre_mission" header="Mission" sortable />
         <Column field="nom_ecole" header="École" sortable />
-        <Column field="montant" header="Montant" body={(row) => formatMontant(row.montant)} sortable />
+        <Column field="montant_journalier" header="Mt journalier" body={(row) => formatMontant(row.montant_journalier || 0)} sortable />
+        <Column field="duree" header="Durée" sortable />
+        <Column field="montant_calcule" header="Montant" body={(row) => formatMontant(row.montant_calcule || 0)} sortable />
         <Column field="date_creation" header="Date création" body={(row) => formatDate(row.date_creation)} sortable />
         <Column field="date_paiement" header="Date paiement" body={(row) => formatDate(row.date_paiement)} sortable />
         <Column field="statut" header="Statut" body={statutTemplate} sortable />
