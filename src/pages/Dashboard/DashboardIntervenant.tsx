@@ -11,11 +11,23 @@ import { ProgressBar } from 'primereact/progressbar';
 import { Sidebar } from 'primereact/sidebar';
 import { Menu } from 'primereact/menu';
 import type { MenuItem } from 'primereact/menuitem';
+
 import FactureListIntervenant from '../../components/FactureListIntervenant';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const DashboardIntervenant: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
+
+  React.useEffect(() => {
+    if (activeSection === 'factures') {
+      const raw = localStorage.getItem('intervenant_connecte');
+      const interv = raw ? JSON.parse(raw) : null;
+      const id = interv?.id_intervenant || '(inconnu)';
+      console.log(`[DashboardIntervenant] Factures -> POST ${API_URL}/api/factures/intervenant/${id}/generate-latest`);
+      console.log(`[DashboardIntervenant] Factures -> GET  ${API_URL}/api/factures/intervenant/${id}`);
+    }
+  }, [activeSection]);
 
   // Données statiques (mock)
   const factures = [

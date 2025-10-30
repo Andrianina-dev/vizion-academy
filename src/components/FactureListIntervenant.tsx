@@ -26,6 +26,7 @@ const FactureListIntervenant: React.FC = () => {
   const [displaySidebar, setDisplaySidebar] = useState(false);
 
   useEffect(() => {
+    let ran = false; // StrictMode guard
     const fetchFactures = async () => {
       try {
         const intervenant = getIntervenantConnecte();
@@ -34,7 +35,18 @@ const FactureListIntervenant: React.FC = () => {
           setLoading(false);
           return;
         }
-        // Récupérer la liste des factures (pas de génération côté front)
+        if (ran) return; ran = true;
+        // Tenter de générer automatiquement une facture depuis la dernière mission (idempotent côté backend)
+        try {
+          await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}/generate-latest`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+        } catch {}
+
+        // Puis récupérer la liste des factures
         const res = await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}`, {
           credentials: 'include',
         });
