@@ -18,6 +18,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const DashboardIntervenant: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [paiements, setPaiements] = useState<any[]>([]);
 
   React.useEffect(() => {
     if (activeSection === 'factures') {
@@ -27,6 +28,22 @@ const DashboardIntervenant: React.FC = () => {
       console.log(`[DashboardIntervenant] Factures -> POST ${API_URL}/api/factures/intervenant/${id}/generate-latest`);
       console.log(`[DashboardIntervenant] Factures -> GET  ${API_URL}/api/factures/intervenant/${id}`);
     }
+  }, [activeSection]);
+
+  React.useEffect(() => {
+    if (activeSection !== 'paiements') return;
+    const raw = localStorage.getItem('intervenant_connecte');
+    const interv = raw ? JSON.parse(raw) : null;
+    const id = interv?.id_intervenant;
+    if (!id) return;
+    console.log(`[DashboardIntervenant] Paiements -> GET ${API_URL}/api/paiements/intervenant/${id}/pending`);
+    fetch(`${API_URL}/api/paiements/intervenant/${id}/pending`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(j => {
+        if (j && j.success) setPaiements(Array.isArray(j.data) ? j.data : []);
+        else setPaiements([]);
+      })
+      .catch(() => setPaiements([]));
   }, [activeSection]);
 
   // Données statiques (mock)
@@ -101,7 +118,7 @@ const DashboardIntervenant: React.FC = () => {
         <a className={options.className} onClick={options.onClick}>
           {item.icon && <span className={options.iconClassName}></span>}
           <span className={options.labelClassName}>{item.label}</span>
-          <Badge value={paiementsEnAttente.length} className="ml-2" />
+          <Badge value={paiements.length} className="ml-2" />
         </a>
       ),
       command: () => setActiveSection('paiements')
@@ -194,6 +211,46 @@ const DashboardIntervenant: React.FC = () => {
         {activeSection === 'factures' ? (
           <div className="p-4 md:p-6">
             <FactureListIntervenant />
+          </div>
+        ) : activeSection === 'paiements' ? (
+          <div className="p-4 md:p-6">
+            <Card 
+              title={
+                <div className="flex align-items-center gap-2">
+                  <i className="pi pi-clock text-yellow-500"></i>
+                  <span>Paiements en Attente</span>
+                  <Badge value={paiements.length} className="ml-2 bg-yellow-500" />
+                </div>
+              }
+              className="shadow-sm mb-4"
+            >
+              {paiements.length === 0 ? (
+                <div className="text-sm text-gray-500">Aucun paiement en attente</div>
+              ) : (
+                <div className="space-y-3">
+                  {paiements.map((p) => (
+                    <div key={p.id_facture} className="p-4 border-round-xl border-1 surface-100">
+                      <div className="flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <div className="font-semibold text-gray-900">{p.virement}</div>
+                          <div className="text-sm text-gray-500">Date estimée: {p.date_estimee}</div>
+                          <div className="text-xs text-gray-500">Motif: {p.motif}</div>
+                        </div>
+                        <Tag value={p.statut} severity={p.statut === 'en validation' ? 'info' : 'warning'} />
+                      </div>
+                      <div className="mt-2 text-sm">
+                        <div className="font-medium">{p.mission?.intitule}</div>
+                        <div className="text-gray-600">{p.mission?.ecole}</div>
+                        <div className="text-gray-600">{p.mission?.date}</div>
+                        <div className="text-gray-700 mt-1">
+                          {(p.mission?.heures ?? 0)} h × {(p.mission?.taux_horaire ?? 0).toFixed(2)} € = <span className="font-semibold">{(((p.mission?.heures ?? 0) * (p.mission?.taux_horaire ?? 0))).toFixed(2)} €</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
         ) : (
           <>
