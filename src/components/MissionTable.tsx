@@ -51,6 +51,18 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
 
   const API_URL = import.meta.env.VITE_API_URL;
 
+  // Helpers pour formatage des dates/heures
+  const toInputLocal = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+  const toApiDateTime = (val: string | null) => {
+    if (!val) return null;
+    // Convertit 'YYYY-MM-DDTHH:mm' -> 'YYYY-MM-DD HH:mm:ss'
+    return val.replace('T', ' ') + ':00';
+  };
+
   const getEcoleConnecteeId = (): string => {
     return ecoleId || getIdEcoleConnectee() || '';
   };
@@ -109,15 +121,15 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
   };
 
   const handleDureeChange = (value: number) => {
-    // minimum 1
+    // minimum 1 heure
     const dureeVal = value < 1 ? 1 : value;
-    const updatedMission = { ...newMission, duree: dureeVal };
+    const updatedMission = { ...newMission, duree: dureeVal } as typeof newMission;
 
     if (updatedMission.date_debut) {
       const debut = new Date(updatedMission.date_debut);
       const fin = new Date(debut);
-      fin.setDate(fin.getDate() + dureeVal - 1);
-      updatedMission.date_fin = fin.toISOString().split('T')[0];
+      fin.setHours(fin.getHours() + dureeVal);
+      updatedMission.date_fin = toInputLocal(fin);
     }
 
     setNewMission(updatedMission);
@@ -128,20 +140,20 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
   };
 
   const handleDateChange = (field: 'date_debut' | 'date_fin', value: string) => {
-    const updatedMission = { ...newMission, [field]: value };
+    const updatedMission: any = { ...newMission, [field]: value };
 
-    if (field === 'date_debut' && updatedMission.date_debut) {
+    if (field === 'date_debut' && updatedMission.date_debut && updatedMission.duree) {
       const debut = new Date(value);
       const fin = new Date(debut);
-      fin.setDate(fin.getDate() + updatedMission.duree - 1);
-      updatedMission.date_fin = fin.toISOString().split('T')[0];
+      fin.setHours(fin.getHours() + Number(updatedMission.duree));
+      updatedMission.date_fin = toInputLocal(fin);
     }
 
     if (updatedMission.date_debut && updatedMission.date_fin) {
       const debut = new Date(updatedMission.date_debut);
       const fin = new Date(updatedMission.date_fin);
-      const diff = Math.ceil((fin.getTime() - debut.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      updatedMission.duree = diff > 0 ? diff : 1;
+      const diffHours = Math.floor((fin.getTime() - debut.getTime()) / (1000 * 60 * 60));
+      updatedMission.duree = diffHours > 0 ? diffHours : 1;
     }
 
     setNewMission(updatedMission);
@@ -161,8 +173,8 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
       conditions: newMission.conditions,
       intervenant_id: newMission.intervenant_id,
       ecole_id: ecoleConnecteeId,
-      date_debut: newMission.date_debut || null,
-      date_fin: newMission.date_fin || null,
+      date_debut: toApiDateTime(newMission.date_debut) || null,
+      date_fin: toApiDateTime(newMission.date_fin) || null,
       duree: newMission.duree
     };
 
@@ -254,7 +266,7 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
         <Column field="date_creation" header="Date création" body={dateCreationTemplate} sortable />
         <Column field="date_debut" header="Début" body={(row) => formatDate(row.date_debut)} sortable />
         <Column field="date_fin" header="Fin" body={(row) => formatDate(row.date_fin)} sortable />
-        <Column field="duree" header="Durée (jours)" sortable />
+        <Column field="duree" header="Durée (heures)" sortable />
         <Column field="ecole_id" header="École ID" sortable />
       </DataTable>
 
@@ -320,18 +332,18 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
             </div>
             <div className="grid">
               <div className="field col-12">
-                <label htmlFor="duree" className="font-medium text-900">Durée (jours) *</label>
+                <label htmlFor="duree" className="font-medium text-900">Durée (heures) *</label>
                 <div className="p-inputgroup mt-1">
                   <input
                     id="duree"
-                    type="text"
+                    type="number"
+                    step={0.5}
                     className="p-inputtext p-component text-center"
                     value={newMission.duree}
                     onChange={(e) => {
                       const val = e.target.value;
-                      if (/^\d*$/.test(val)) {
-                        setNewMission({ ...newMission, duree: val === '' ? 0 : parseInt(val) });
-                      }
+                      const parsed = val === '' ? 0 : parseFloat(val);
+                      setNewMission({ ...newMission, duree: isNaN(parsed) ? 0 : parsed });
                     }}
                     onBlur={() => {
                       const corrected = !newMission.duree || newMission.duree < 1 ? 1 : newMission.duree;
@@ -365,20 +377,20 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
             {showDates && (
               <div className="grid mt-3">
                 <div className="field col-6">
-                  <label htmlFor="date_debut" className="font-medium text-900">Date de début</label>
+                  <label htmlFor="date_debut" className="font-medium text-900">Date et heure de début</label>
                   <input
                     id="date_debut"
-                    type="date"
+                    type="datetime-local"
                     className="p-inputtext p-component w-full mt-1"
                     value={newMission.date_debut}
                     onChange={(e) => handleDateChange('date_debut', e.target.value)}
                   />
                 </div>
                 <div className="field col-6">
-                  <label htmlFor="date_fin" className="font-medium text-900">Date de fin</label>
+                  <label htmlFor="date_fin" className="font-medium text-900">Date et heure de fin</label>
                   <input
                     id="date_fin"
-                    type="date"
+                    type="datetime-local"
                     className="p-inputtext p-component w-full mt-1"
                     value={newMission.date_fin}
                     onChange={(e) => handleDateChange('date_fin', e.target.value)}
@@ -389,7 +401,7 @@ const MissionTable: React.FC<MissionTableProps> = ({ ecoleId }) => {
                   <div className="col-12 text-sm text-700 p-3 bg-blue-50 border-round mt-2">
                     <div className="flex align-items-center gap-2">
                       <i className="pi pi-info-circle text-blue-600"></i>
-                      <span>Période: <strong>{formatDate(newMission.date_debut)}</strong> au <strong>{formatDate(newMission.date_fin)}</strong> ({newMission.duree} jour(s))</span>
+                      <span>Période: <strong>{new Date(newMission.date_debut).toLocaleString('fr-FR')}</strong> au <strong>{new Date(newMission.date_fin).toLocaleString('fr-FR')}</strong> ({newMission.duree} heure(s))</span>
                     </div>
                   </div>
                 )}
