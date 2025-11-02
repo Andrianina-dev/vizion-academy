@@ -4,7 +4,6 @@ import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { Dropdown } from 'primereact/dropdown';
 import { Badge } from 'primereact/badge';
 import { Avatar } from 'primereact/avatar';
 import { ProgressBar } from 'primereact/progressbar';
@@ -14,6 +13,7 @@ import type { MenuItem } from 'primereact/menuitem';
 
 import FactureListIntervenant from '../../components/FactureListIntervenant';
 import PaiementsEnAttente from '../../components/Paiements/PaiementsEnAttente';
+import DeclarationActivites from '../../components/Paiements/DeclarationActivites';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const DashboardIntervenant: React.FC = () => {
@@ -209,7 +209,13 @@ const DashboardIntervenant: React.FC = () => {
 
       {/* Contenu Principal */}
       <div className="flex-1 overflow-auto">
-        {activeSection === 'factures' ? (
+        {activeSection === 'declarations' ? (
+          <div className="p-4 md:p-6">
+            <Card title="Déclaration d'Activités" className="shadow-sm">
+              <DeclarationActivites />
+            </Card>
+          </div>
+        ) : activeSection === 'dashboard' ? (
           <div className="p-4 md:p-6">
             <FactureListIntervenant />
           </div>
@@ -409,44 +415,7 @@ const DashboardIntervenant: React.FC = () => {
                 }
                 className="shadow-sm"
               >
-                <div className="grid formgrid p-fluid">
-                  <div className="field col-12 md:col-6">
-                    <label htmlFor="periode" className="font-semibold text-gray-700">Période</label>
-                    <Dropdown 
-                      id="periode" 
-                      value={"Octobre 2025"} 
-                      options={["Septembre 2025", "Octobre 2025", "Novembre 2025"]} 
-                      onChange={() => {}} 
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="field col-12 md:col-3">
-                    <label htmlFor="heures" className="font-semibold text-gray-700">Heures</label>
-                    <InputText id="heures" value={"10"} onChange={() => {}} className="w-full" />
-                  </div>
-                  <div className="field col-12 md:col-3">
-                    <label htmlFor="taux" className="font-semibold text-gray-700">Taux horaire (€)</label>
-                    <InputText id="taux" value={"40"} onChange={() => {}} className="w-full" />
-                  </div>
-                  <div className="field col-12">
-                    <label htmlFor="commentaire" className="font-semibold text-gray-700">Commentaire</label>
-                    <InputTextarea 
-                      id="commentaire" 
-                      rows={3} 
-                      value={"Déclaration d'activité pour le mois d'octobre 2025"} 
-                      onChange={() => {}} 
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="col-12">
-                    <Button 
-                      label="Soumettre la déclaration" 
-                      icon="pi pi-send" 
-                      className="bg-gradient-to-r from-blue-500 to-purple-600 border-0 shadow-lg hover:shadow-xl transition-all duration-300"
-                      onClick={() => alert('Déclaration envoyée')}
-                    />
-                  </div>
-                </div>
+                <DeclarationActivites />
               </Card>
             </div>
 
