@@ -98,7 +98,12 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                 if (!isMounted) return;
                 
                 if (data?.success && Array.isArray(data.data)) {
-                    setPaiements(data.data);
+                    // S'assurer que chaque paiement a un tableau de missions
+                    const paiementsAvecMissions = data.data.map((p: Paiement) => ({
+                        ...p,
+                        missions: p.missions || []
+                    }));
+                    setPaiements(paiementsAvecMissions);
                     setError(null);
                 } else {
                     setPaiements([]);
@@ -207,7 +212,7 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                 <div className="mt-4">
                                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Missions concernées :</h4>
                                     <div className="space-y-3">
-                                        {paiement.missions.map((mission, index) => (
+                                        {(paiement.missions || []).map((mission, index) => (
                                             <div key={index} className="p-3 bg-gray-50 rounded-lg">
                                                 <div className="flex justify-between items-start">
                                                     <div>
