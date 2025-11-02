@@ -13,6 +13,7 @@ import { Menu } from 'primereact/menu';
 import type { MenuItem } from 'primereact/menuitem';
 
 import FactureListIntervenant from '../../components/FactureListIntervenant';
+import PaiementsEnAttente from '../../components/Paiements/PaiementsEnAttente';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const DashboardIntervenant: React.FC = () => {
@@ -214,43 +215,10 @@ const DashboardIntervenant: React.FC = () => {
           </div>
         ) : activeSection === 'paiements' ? (
           <div className="p-4 md:p-6">
-            <Card 
-              title={
-                <div className="flex align-items-center gap-2">
-                  <i className="pi pi-clock text-yellow-500"></i>
-                  <span>Paiements en Attente</span>
-                  <Badge value={paiements.length} className="ml-2 bg-yellow-500" />
-                </div>
-              }
-              className="shadow-sm mb-4"
-            >
-              {paiements.length === 0 ? (
-                <div className="text-sm text-gray-500">Aucun paiement en attente</div>
-              ) : (
-                <div className="space-y-3">
-                  {paiements.map((p) => (
-                    <div key={p.id_facture} className="p-4 border-round-xl border-1 surface-100">
-                      <div className="flex justify-content-between align-items-start mb-2">
-                        <div>
-                          <div className="font-semibold text-gray-900">{p.virement}</div>
-                          <div className="text-sm text-gray-500">Date estimée: {p.date_estimee}</div>
-                          <div className="text-xs text-gray-500">Motif: {p.motif}</div>
-                        </div>
-                        <Tag value={p.statut} severity={p.statut === 'en validation' ? 'info' : 'warning'} />
-                      </div>
-                      <div className="mt-2 text-sm">
-                        <div className="font-medium">{p.mission?.intitule}</div>
-                        <div className="text-gray-600">{p.mission?.ecole}</div>
-                        <div className="text-gray-600">{p.mission?.date}</div>
-                        <div className="text-gray-700 mt-1">
-                          {(p.mission?.heures ?? 0)} h × {(p.mission?.taux_horaire ?? 0).toFixed(2)} € = <span className="font-semibold">{(((p.mission?.heures ?? 0) * (p.mission?.taux_horaire ?? 0))).toFixed(2)} €</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
+            <PaiementsEnAttente 
+              intervenantId={localStorage.getItem('intervenant_connecte') ? JSON.parse(localStorage.getItem('intervenant_connecte')!).id_intervenant : null}
+              className="mb-4"
+            />
           </div>
         ) : (
           <>
