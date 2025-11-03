@@ -14,12 +14,24 @@ import type { MenuItem } from 'primereact/menuitem';
 import FactureListIntervenant from '../../components/FactureListIntervenant';
 import PaiementsEnAttente from '../../components/Paiements/PaiementsEnAttente';
 import DeclarationActivites from '../../components/Paiements/DeclarationActivites';
+import ProfilPublic from '../../components/Profil/ProfilPublic';
 const API_URL = import.meta.env.VITE_API_URL;
+
+interface Profile {
+  bio: string;
+  competences: string;
+  // Add other profile fields as needed
+}
 
 const DashboardIntervenant: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [paiements, setPaiements] = useState<any[]>([]);
+  const [profil, setProfil] = useState<Profile>({
+    bio: '',
+    competences: '',
+    // Initialize other profile fields here
+  });
 
   React.useEffect(() => {
     if (activeSection === 'factures') {
@@ -64,29 +76,32 @@ const DashboardIntervenant: React.FC = () => {
     { ecole: 'Collège Victor Hugo', date: '2025-10-10', tauxHoraire: 45, heures: 4, intitule: 'Robotique' },
   ];
 
-  const [profil, setProfil] = useState({
-    photoUrl: '',
-    bio: 'Intervenant passionné par les STEM et la pédagogie active.',
-    competences: 'IA, Robotique, Arduino',
-    disponibilite: 'Hebdomadaire',
-    documents: 'CV.pdf, Diplôme.pdf'
-  });
+  // Récupérer l'ID de l'intervenant connecté
+  const intervenantId = localStorage.getItem('intervenant_connecte') 
+    ? JSON.parse(localStorage.getItem('intervenant_connecte')!).id_intervenant 
+    : null;
 
   // Menu items pour la sidebar
   const menuItems: MenuItem[] = [
     {
       label: 'Tableau de Bord',
       icon: 'pi pi-home',
-      command: () => setActiveSection('dashboard')
+      command: () => setActiveSection('dashboard'),
+      template: (item, options) => (
+        <a className={options.className} onClick={() => setActiveSection('dashboard')}>
+          {item.icon && <span className={options.iconClassName}></span>}
+          <span className={options.labelClassName}>{item.label}</span>
+        </a>
+      )
     },
     {
       label: 'Factures',
       icon: 'pi pi-file-pdf',
       template: (item, options) => (
-        <a className={options.className} onClick={options.onClick}>
+        <a className={options.className} onClick={() => setActiveSection('factures')}>
           {item.icon && <span className={options.iconClassName}></span>}
           <span className={options.labelClassName}>{item.label}</span>
-          <Badge value={factures.length} className="ml-2" />
+          {factures.length > 0 && <Badge value={factures.length} className="ml-2" />}
         </a>
       ),
       command: () => setActiveSection('factures')
@@ -132,7 +147,13 @@ const DashboardIntervenant: React.FC = () => {
     {
       label: 'Profil',
       icon: 'pi pi-user',
-      command: () => setActiveSection('profil')
+      command: () => setActiveSection('profil'),
+      template: (item, options) => (
+        <a className={options.className} onClick={() => setActiveSection('profil')}>
+          {item.icon && <span className={options.iconClassName}></span>}
+          <span className={options.labelClassName}>{item.label}</span>
+        </a>
+      )
     },
     {
       label: 'Documents',
@@ -209,7 +230,11 @@ const DashboardIntervenant: React.FC = () => {
 
       {/* Contenu Principal */}
       <div className="flex-1 overflow-auto">
-        {activeSection === 'declarations' ? (
+        {activeSection === 'profil' ? (
+          <div className="p-4 md:p-6">
+            <ProfilPublic className="mb-4" />
+          </div>
+        ) : activeSection === 'declarations' ? (
           <div className="p-4 md:p-6">
             <Card title="Déclaration d'Activités" className="shadow-sm">
               <DeclarationActivites />
@@ -222,7 +247,7 @@ const DashboardIntervenant: React.FC = () => {
         ) : activeSection === 'paiements' ? (
           <div className="p-4 md:p-6">
             <PaiementsEnAttente 
-              intervenantId={localStorage.getItem('intervenant_connecte') ? JSON.parse(localStorage.getItem('intervenant_connecte')!).id_intervenant : null}
+              intervenantId={intervenantId}
               className="mb-4"
             />
           </div>

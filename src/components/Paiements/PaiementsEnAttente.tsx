@@ -79,15 +79,21 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
         const fetchPaiements = async () => {
             try {
                 setLoading(true);
+                const apiUrl = import.meta.env.VITE_API_URL;
+                if (!apiUrl) {
+                    throw new Error('L\'URL de l\'API n\'est pas configurée');
+                }
+
                 const response = await fetch(
-                    `https://government-crystal-spin-sue.trycloudflare.com/api/paiements/intervenant/${intervenantId}/pending`,
+                    `${apiUrl}/api/paiements/intervenant/${intervenantId}/pending`,
                     {
                         method: 'GET',
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json'
                         },
-                        mode: 'cors'
+                        mode: 'cors',
+                        credentials: 'include'
                     }
                 );
 
