@@ -9,9 +9,10 @@ interface DashboardLayoutProps {
   children: ReactNode;
   onSelect: (section: string) => void;
   activeSection: string;
+  intervenantId: string;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onSelect, activeSection }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onSelect, activeSection, intervenantId }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
   const start = (
@@ -27,7 +28,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onSelect, a
 
   const end = (
     <div className="flex align-items-center gap-2">
-      <NotificationBell />
+      <NotificationBell intervenantId={intervenantId} />
       <Button icon="pi pi-user" className="p-button-text" />
     </div>
   );
