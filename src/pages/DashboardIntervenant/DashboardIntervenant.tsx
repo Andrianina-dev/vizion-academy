@@ -40,7 +40,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   const [loading, setLoading] = useState(true);
   
   // Statistiques pour le tableau de bord
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats] = useState<DashboardStats>({
     facturesEnAttente: 2,
     facturesPayees: 5,
     montantAttente: 1850,
