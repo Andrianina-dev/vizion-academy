@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/antd": "^0.12.32",
     "@types/date-fns": "^2.5.3",
+    "antd": "^5.28.0",
     "axios": "^1.12.2",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.552.0",

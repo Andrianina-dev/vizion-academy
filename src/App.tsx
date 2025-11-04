@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { PrimeReactProvider } from 'primereact/api';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
-import DashboardIntervenant from './pages/Dashboard/DashboardIntervenant';
+import DashboardIntervenant from './pages/DashboardIntervenant/DashboardIntervenant';
 import SiteVitrine from './pages/VitrinePublique/siteVitrine'; // Importez le SiteVitrine
 import LoginIntervenant from './pages/Login/LoginIntervenant';
 import "primereact/resources/themes/lara-light-cyan/theme.css";
