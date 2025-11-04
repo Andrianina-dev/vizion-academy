@@ -28,39 +28,78 @@ const FactureListIntervenant: React.FC = () => {
   const [displaySidebar, setDisplaySidebar] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     let ran = false; // StrictMode guard
+    
     const fetchFactures = async () => {
       try {
         const intervenant = getIntervenantConnecte();
         const intervenantId = intervenant?.id_intervenant;
+        
         if (!intervenantId) {
-          setLoading(false);
+          if (isMounted) setLoading(false);
           return;
         }
-        if (ran) return; ran = true;
+        
+        if (ran) return; 
+        ran = true;
+        
         // Tenter de générer automatiquement une facture depuis la dernière mission (idempotent côté backend)
         try {
-          await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}/generate-latest`, {
+          const response = await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}/generate-latest`, {
             method: 'POST',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
             body: JSON.stringify({})
           });
-        } catch {}
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Erreur lors de la génération de la facture:', errorData);
+          }
+        } catch (error) {
+          console.error('Erreur réseau lors de la génération de la facture:', error);
+        }
 
         // Puis récupérer la liste des factures
-        const res = await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.success) setFactures(data.data || []);
+        try {
+          const res = await fetch(`${API_URL}/api/factures/intervenant/${intervenantId}`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (isMounted && data.success) {
+              setFactures(data.data || []);
+            }
+          } else {
+            console.error('Erreur lors du chargement des factures:', await res.text());
+          }
+        } catch (error) {
+          console.error('Erreur réseau lors du chargement des factures:', error);
+        }
+        
       } catch (error) {
-        console.error(error);
+        console.error('Erreur inattendue:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+    
     fetchFactures();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const formatDate = (dateString: string | null) => {
