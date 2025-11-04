@@ -1,8 +1,8 @@
 import axios from "axios";
 
- const res = await axios.get(API_URL);
+const res = await axios.get(API_URL);
 
-const API_URL = `${API_URL}/api/factures`; 
+const API_URL = `${API_URL}/api/factures`;
 
 export const getFactures = async () => {
   const res = await axios.get(API_URL);

@@ -1,0 +1,13 @@
+.notification-bell .p-overlaypanel-content {
+  padding: 0 !important;
+}
+
+.notification-bell .p-overlaypanel:before,
+.notification-bell .p-overlaypanel:after {
+  display: none;
+}
+
+.notification-bell .p-overlaypanel-close {
+  top: 0.5rem;
+  right: 0.5rem;
+}

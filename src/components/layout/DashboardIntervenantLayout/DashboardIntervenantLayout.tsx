@@ -14,11 +14,13 @@ interface DashboardIntervenantLayoutProps {
   facturesCount?: number;
   paiementsCount?: number;
   userInfo?: {
+    id?: string;
     name: string;
     role: string;
     avatar?: string;
   };
   headerActions?: ReactNode;
+  intervenantId?: string;
 }
 
 const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
@@ -27,7 +29,8 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
   onSectionChange,
   facturesCount = 0,
   paiementsCount = 0,
-  userInfo = { name: 'Expert STEM', role: 'Intervenant Vizion Academy' }
+  userInfo = { name: 'Expert STEM', role: 'Intervenant Vizion Academy' },
+  intervenantId
 }) => {
   // Menu items pour la sidebar
   const menuItems: MenuItem[] = [
@@ -180,12 +183,7 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
           </div>
           
           <div className="flex align-items-center">
-            <NotificationBell />
-            <Button 
-              icon="pi pi-bell" 
-              className="p-button-text p-button-rounded p-button-plain"
-              onClick={() => {}}
-            />
+            <NotificationBell intervenantId={userInfo?.id || intervenantId || ''} />
             <Menu model={menuItems} popup ref={null} id="popup_menu" />
             <Avatar 
               icon={userInfo.avatar ? undefined : 'pi pi-user'}

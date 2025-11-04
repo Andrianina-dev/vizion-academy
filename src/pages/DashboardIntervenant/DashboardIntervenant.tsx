@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Card } from 'primereact/card';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Badge } from 'primereact/badge';
@@ -7,6 +8,7 @@ import { Ripple } from 'primereact/ripple';
 import { Divider } from 'primereact/divider';
 import { Avatar } from 'primereact/avatar';
 import { Tag } from 'primereact/tag';
+import { NotificationBell } from '../../components/Notifications/NotificationBell';
 
 // Services
 import { getIntervenantConnecte } from '../../services/intervenantService';
@@ -38,9 +40,20 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [intervenant, setIntervenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Mettre à jour le compteur de notifications non lues dans les stats
+  useEffect(() => {
+    if (unreadCount >= 0) {
+      setStats(prev => ({
+        ...prev,
+        notificationsNonLues: unreadCount
+      }));
+    }
+  }, [unreadCount]);
   
   // Statistiques pour le tableau de bord
-  const [stats] = useState<DashboardStats>({
+  const [stats, setStats] = useState<DashboardStats>({
     facturesEnAttente: 2,
     facturesPayees: 5,
     montantAttente: 1850,
@@ -59,6 +72,27 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
         // Simuler un chargement asynchrone
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        // Mettre à jour le compteur de notifications non lues
+        if (intervenantConnecte?.id_intervenant) {
+          try {
+            const response = await axios.get(
+              `${import.meta.env.VITE_API_URL}/api/notifications/intervenant/${intervenantConnecte.id_intervenant}`,
+              {
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            
+            if (response.data?.success && Array.isArray(response.data.data)) {
+              const unread = response.data.data.filter((n: any) => !n.lu).length;
+              setUnreadCount(unread);
+            }
+          } catch (error) {
+            console.error('Erreur lors du chargement des notifications:', error);
+          }
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
       } finally {
@@ -348,40 +382,19 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
                     Restez informé de vos activités et paiements
                   </p>
                 </div>
-                <Tag 
-                  value={`${stats.notificationsNonLues} non lues`} 
-                  severity="warning" 
-                />
+                {stats.notificationsNonLues > 0 && (
+                  <Tag 
+                    value={`${stats.notificationsNonLues} non lue${stats.notificationsNonLues > 1 ? 's' : ''}`} 
+                    severity="warning" 
+                  />
+                )}
               </div>
               
-              <div className="border-round overflow-hidden">
-                {[1, 2, 3].map((item, index) => (
-                  <div 
-                    key={index}
-                    className={`flex align-items-center gap-3 p-3 cursor-pointer transition-duration-150 ${
-                      index % 2 === 0 ? 'surface-50' : 'surface-0'
-                    } hover:surface-100 border-bottom-1 surface-border`}
-                  >
-                    <Avatar 
-                      icon="pi pi-info-circle" 
-                      size="large" 
-                      shape="circle" 
-                      className="flex-shrink-0"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-lg">
-                        Notification importante #{item}
-                      </div>
-                      <div className="text-gray-600">
-                        Ceci est un exemple de notification. La fonctionnalité complète sera disponible prochainement.
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        Il y a {item} jour{item > 1 ? 's' : ''}
-                      </div>
-                    </div>
-                    {index === 0 && <Tag value="Nouveau" severity="success" />}
-                  </div>
-                ))}
+              <div className="notification-container">
+                <NotificationBell 
+                  intervenantId={intervenant?.id_intervenant} 
+                  onUnreadCountChange={setUnreadCount}
+                />
               </div>
             </Card>
           </TabPanel>
