@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Tag, Button, Space, Tooltip, Badge } from 'antd';
+import { Table, Tag, Button, Space, Tooltip } from 'antd';
 import { DownloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -68,15 +68,15 @@ export const PaiementList: React.FC<PaiementListProps> = ({
             break;
           case 'en attente':
             color = 'warning';
-            text = 'En attente de virement';
+            text = 'en attente';
             break;
           case 'en validation':
             color = 'processing';
-            text = 'En cours de validation';
+            text = 'en validation';
             break;
           case 'bloqué':
             color = 'error';
-            text = 'Bloqué';
+            text = 'bloqué';
             break;
           default:
             color = 'default';
