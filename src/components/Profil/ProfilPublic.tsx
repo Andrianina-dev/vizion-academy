@@ -183,67 +183,140 @@ const ProfilPublic: React.FC<ProfilPublicProps> = ({ className = '' }) => {
     try {
       setLoading(true);
       
-      const formData = new FormData();
+      if (!intervenantId) {
+        throw new Error('ID de l\'intervenant non trouvé');
+      }
+
+      // Créer un objet avec les valeurs actuelles du formulaire
+      const formValues: Record<string, any> = {};
       
-      const textFields = {
-        bio_intervenant: profil.bio_intervenant,
-        competences: profil.competences,
-        disponibilite: profil.disponibilite,
-        domaines: JSON.stringify(profil.domaines),
-        langues: JSON.stringify(profil.langues),
-        ville: profil.ville,
-        diplome: profil.diplome
-      };
-      
-      Object.entries(textFields).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value);
+      // Récupérer les valeurs des champs texte
+      document.querySelectorAll<HTMLInputElement>('input[type="text"]').forEach(input => {
+        if (input.name) {
+          formValues[input.name] = input.value;
         }
       });
       
+      // Récupérer les valeurs des zones de texte
+      document.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(textarea => {
+        if (textarea.name) {
+          formValues[textarea.name] = textarea.value;
+        }
+      });
+      
+      // Vérifier les champs modifiés en comparant avec l'état initial
+      const modifiedFields: Record<string, any> = {};
+      
+      // Vérifier les champs texte modifiés
+      const textFields = ['nom_intervenant', 'prenom_intervenant', 'bio_intervenant', 'competences', 'disponibilite', 'ville', 'diplome'];
+      textFields.forEach(field => {
+        if (formValues[field] !== profil[field as keyof typeof profil]) {
+          modifiedFields[field] = formValues[field];
+        }
+      });
+      
+      // Vérifier les fichiers
+      const fileInputs = document.querySelectorAll<HTMLInputElement>('input[type="file"]');
+      fileInputs.forEach(input => {
+        if (input.files && input.files.length > 0) {
+          modifiedFields[input.name || 'photo_intervenant'] = input.files[0];
+        }
+      });
+      
+      // Vérifier les tableaux (domaines, langues)
+      if (profil.domaines && profil.domaines.length > 0) {
+        modifiedFields.domaines = profil.domaines;
+      }
+      
+      if (profil.langues && profil.langues.length > 0) {
+        modifiedFields.langues = profil.langues;
+      }
+      
+      if (Object.keys(modifiedFields).length === 0) {
+        showError('Aucune modification détectée');
+        return;
+      }
+      
+      const formData = new FormData();
+      
+      // Ajouter les champs modifiés au FormData
+      Object.entries(modifiedFields).forEach(([key, value]) => {
+        if (value instanceof File) {
+          formData.append(key, value);
+        } else if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, String(value));
+        }
+      });
+      
+      // Envoyer la requête de mise à jour
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/intervenants/${intervenantId}/profil`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Accept': 'application/json'
-        },
         body: formData
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erreur lors de la mise à jour du profil');
+        throw new Error(responseData.message || 'Erreur lors de la mise à jour du profil');
       }
       
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setProfil(prev => ({
-          ...prev,
-          ...data.data,
-          photo_url: data.data.photo_url ?? prev.photo_url,
-          cv_url: data.data.cv_url ?? prev.cv_url,
-          documents_url: data.data.documents_url ?? prev.documents_url,
-          domaines: data.data.domaines ?? prev.domaines,
-          langues: data.data.langues ?? prev.langues
-        }));
-        
-        const intervenantConnecte = JSON.parse(localStorage.getItem('intervenant_connecte') || '{}');
-        if (intervenantConnecte) {
-          localStorage.setItem('intervenant_connecte', JSON.stringify({
-            ...intervenantConnecte,
-            ...data.data
-          }));
+      if (responseData.success) {
+        // Si le serveur indique qu'aucune modification n'a été effectuée
+        if (responseData.message === 'Aucune modification détectée') {
+          showSuccess(responseData.message);
+          setIsEditing(false);
+          return;
         }
         
-        showSuccess('Profil mis à jour avec succès');
+        // Si des données sont renvoyées, les utiliser pour mettre à jour le profil
+        if (responseData.data) {
+          const responseDataData = responseData.data;
+          const updatedProfil = {
+            ...profil,
+            ...responseDataData,
+            photo_url: responseDataData.photo_url || profil.photo_url,
+            documents_url: responseDataData.documents_url || profil.documents_url,
+            cv_url: responseDataData.cv_url || profil.cv_url,
+            domaines: Array.isArray(responseDataData.domaines) ? responseDataData.domaines : (profil.domaines || []),
+            langues: Array.isArray(responseDataData.langues) ? responseDataData.langues : (profil.langues || [])
+          };
+          
+          setProfil(updatedProfil);
+          
+          // Mettre à jour le localStorage
+          try {
+            const intervenantConnecte = JSON.parse(localStorage.getItem('intervenant_connecte') || '{}');
+            if (intervenantConnecte) {
+              localStorage.setItem('intervenant_connecte', JSON.stringify({
+                ...intervenantConnecte,
+                ...responseDataData,
+                photo_url: updatedProfil.photo_url,
+                documents_url: updatedProfil.documents_url,
+                cv_url: updatedProfil.cv_url,
+                domaines: updatedProfil.domaines,
+                langues: updatedProfil.langues
+              }));
+            }
+          } catch (storageError) {
+            console.warn('Erreur lors de la mise à jour du localStorage:', storageError);
+            // Ne pas bloquer le flux en cas d'erreur de localStorage
+          }
+        }
+        
+        showSuccess(responseData.message || 'Profil mis à jour avec succès');
         setIsEditing(false);
       } else {
-        throw new Error(data.message || 'Erreur lors de la mise à jour du profil');
+        // Si le serveur renvoie success: false mais avec un message
+        if (responseData.message) {
+          throw new Error(responseData.message);
+        }
+        throw new Error('Erreur lors de la mise à jour du profil');
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      showError('Une erreur est survenue lors de la mise à jour du profil');
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      showError(error instanceof Error ? error.message : 'Une erreur est survenue lors de la mise à jour du profil');
     } finally {
       setLoading(false);
     }
@@ -300,36 +373,39 @@ const ProfilPublic: React.FC<ProfilPublicProps> = ({ className = '' }) => {
         <div className="col-12 md:col-4">
           <Card className="shadow-1 mb-3" style={{ padding: '1.5rem' }}>
             <div className="text-center">
-              <div className="relative inline-block mb-3">
-                {/* PHOTO RÉDUITE - de w-24 h-24 à w-16 h-16 */}
-                <img 
-                  src={getPhotoUrl()} 
-                  alt="Photo de profil" 
-                  className="w-16 h-16 rounded-full border-2 border-white shadow-lg object-cover mb-2"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/assets/images/avatar-default.png';
-                  }}
-                />
-                {isEditing && (
-                  <div className="absolute bottom-0 right-0">
-                    <FileUpload
-                      ref={fileUploadRef}
-                      mode="basic"
-                      name="photo_intervenant"
-                      accept="image/*"
-                      maxFileSize={2000000}
-                      onSelect={handleFileUpload}
-                      auto
-                      chooseLabel="Changer"
-                      chooseOptions={{
-                        icon: 'pi pi-camera',
-                        className: 'p-button-rounded p-button-sm p-button-outlined',
-                        label: ''
+              <div className="relative mb-4">
+                <div className="relative w-24 h-24 mx-auto">
+                  <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md">
+                    <img 
+                      src={getPhotoUrl()} 
+                      alt="Photo de profil" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/assets/images/avatar-default.png';
                       }}
                     />
                   </div>
-                )}
+                  {isEditing && (
+                    <div className="absolute -bottom-2 -right-2">
+                      <FileUpload
+                        ref={fileUploadRef}
+                        mode="basic"
+                        name="photo_intervenant"
+                        accept="image/*"
+                        maxFileSize={2000000}
+                        onSelect={handleFileUpload}
+                        auto
+                        chooseLabel=""
+                        chooseOptions={{
+                          icon: 'pi pi-camera',
+                          className: 'p-button-rounded p-button-sm p-button-primary',
+                          label: ''
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
               
               {uploadProgress > 0 && uploadProgress < 100 && (

@@ -25,13 +25,35 @@ interface Profile {
 
 const DashboardIntervenant: React.FC = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [activeSection, setActiveSection] = useState('dashboard');
   const [paiements, setPaiements] = useState<any[]>([]);
   const [profil, setProfil] = useState<Profile>({
     bio: '',
     competences: '',
     // Initialize other profile fields here
   });
+
+  const activites = [
+    {
+      icon: 'pi-calendar',
+      titre: 'Nouvelle mission assignée',
+      date: '3 Nov 2025',
+      heure: '14:30'
+    },
+    {
+      icon: 'pi-check-circle',
+      titre: 'Mission complétée',
+      date: '2 Nov 2025',
+      heure: '16:45'
+    },
+    {
+      icon: 'pi-envelope',
+      titre: 'Message reçu',
+      date: '1 Nov 2025',
+      heure: '09:15'
+    }
+  ];
+
+  const [activeSection, setActiveSection] = useState('tableau-de-bord');
 
   React.useEffect(() => {
     if (activeSection === 'factures') {
@@ -242,7 +264,216 @@ const DashboardIntervenant: React.FC = () => {
           </div>
         ) : activeSection === 'dashboard' ? (
           <div className="p-4 md:p-6">
-            <FactureListIntervenant />
+            {/* Header Desktop */}
+            <div className="mb-6 hidden lg:block">
+              <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Tableau de Bord</h1>
+                  <p className="text-gray-600">Bienvenue dans votre espace intervenant Vizion Academy</p>
+                </div>
+                <div className="flex align-items-center gap-3">
+                  <Avatar 
+                    icon="pi pi-user" 
+                    size="large" 
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg" 
+                    shape="circle" 
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-900">Expert STEM</div>
+                    <div className="text-sm text-gray-500">Intervenant Vizion Academy</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistiques Rapides */}
+            <div className="grid mb-6">
+              <div className="col-12 md:col-3">
+                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">€{stats.revenusMois}</div>
+                      <div className="text-sm text-gray-500">Revenus ce mois</div>
+                    </div>
+                    <div className="p-3 bg-blue-100 border-round-lg">
+                      <i className="pi pi-euro text-blue-600 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              <div className="col-12 md:col-3">
+                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">{stats.missionsEnCours}</div>
+                      <div className="text-sm text-gray-500">Missions en cours</div>
+                    </div>
+                    <div className="p-3 bg-green-100 border-round-lg">
+                      <i className="pi pi-briefcase text-green-600 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              <div className="col-12 md:col-3">
+                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">{stats.tauxOccupation}%</div>
+                      <div className="text-sm text-gray-500">Taux d'occupation</div>
+                    </div>
+                    <div className="p-3 bg-orange-100 border-round-lg">
+                      <i className="pi pi-chart-line text-orange-600 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              <div className="col-12 md:col-3">
+                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <div className="text-2xl font-bold text-gray-900">{stats.satisfaction}/5</div>
+                      <div className="text-sm text-gray-500">Satisfaction</div>
+                    </div>
+                    <div className="p-3 bg-purple-100 border-round-lg">
+                      <i className="pi pi-star text-purple-600 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            <div className="grid">
+              <div className="col-12">
+                <Card title="Vos prochaines missions" className="shadow-sm mb-4">
+                  <p className="text-gray-600">Aucune mission prévue pour le moment.</p>
+                </Card>
+              </div>
+            </div>
+
+            <div className="grid">
+              {/* Colonne Gauche */}
+              <div className="col-12 lg:col-8">
+                {/* Factures */}
+                <Card 
+                  title={
+                    <div className="flex align-items-center gap-2">
+                      <i className="pi pi-file-pdf text-blue-500"></i>
+                      <span>Factures Générées</span>
+                      <Badge value={factures.length} className="ml-2 bg-blue-500" />
+                    </div>
+                  }
+                  className="shadow-sm mb-4"
+                >
+                  <div className="grid">
+                    {factures.map((f) => (
+                      <div key={f.id} className="col-12 md:col-6 lg:col-4 mb-3">
+                        <div className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
+                          <div className="flex justify-content-between align-items-start mb-3">
+                            <div className="font-semibold text-gray-900">{f.id}</div>
+                            {statutTemplate(f.statut)}
+                          </div>
+                          <div className="text-2xl font-bold text-gray-900 mb-2">{f.montant} €</div>
+                          <div className="text-sm text-gray-500 mb-3">Échéance: {f.date}</div>
+                          <Button 
+                            icon="pi pi-download" 
+                            label="Télécharger" 
+                            className="p-button-outlined p-button-sm w-full" 
+                            onClick={() => alert(`Téléchargement ${f.id}.pdf`)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Missions Réalisées */}
+                <Card 
+                  title={
+                    <div className="flex align-items-center gap-2">
+                      <i className="pi pi-briefcase text-green-500"></i>
+                      <span>Missions Réalisées</span>
+                    </div>
+                  }
+                  className="shadow-sm mb-4"
+                >
+                  <div className="space-y-3">
+                    {missionsRealisees.map((m, idx) => (
+                      <div key={idx} className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
+                        <div className="flex justify-content-between align-items-start mb-3">
+                          <div>
+                            <div className="font-semibold text-gray-900 text-lg">{m.intitule}</div>
+                            <div className="text-sm text-gray-500">{m.ecole}</div>
+                          </div>
+                          <Tag value={`${m.tauxHoraire}€/h`} severity="info" />
+                        </div>
+                        <div className="grid">
+                          <div className="col-6">
+                            <div className="text-sm text-gray-500">Date</div>
+                            <div className="font-medium">{m.date}</div>
+                          </div>
+                          <div className="col-6">
+                            <div className="text-sm text-gray-500">Volume horaire</div>
+                            <div className="font-medium">{m.heures} heures</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Colonne Droite */}
+              <div className="col-12 lg:col-4">
+                {/* Prochains paiements */}
+                <Card 
+                  title={
+                    <div className="flex align-items-center gap-2">
+                      <i className="pi pi-wallet text-yellow-500"></i>
+                      <span>Prochains Paiements</span>
+                    </div>
+                  }
+                  className="shadow-sm mb-4"
+                >
+                  <div className="space-y-3">
+                    {paiements.map((p, idx) => (
+                      <div key={idx} className="p-3 border-round-lg border-1 surface-100">
+                        <div className="flex justify-content-between align-items-center mb-2">
+                          <span className="font-medium text-gray-900">{p.montant} €</span>
+                          <Tag value={p.statut} severity={p.statut === 'Payé' ? 'success' : 'warning'} />
+                        </div>
+                        <div className="text-sm text-gray-500">{p.date}</div>
+                        <div className="text-sm">{p.libelle}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* Dernières activités */}
+                <Card 
+                  title={
+                    <div className="flex align-items-center gap-2">
+                      <i className="pi pi-history text-purple-500"></i>
+                      <span>Dernières Activités</span>
+                    </div>
+                  }
+                  className="shadow-sm"
+                >
+                  <div className="space-y-3">
+                    {activites.map((a, idx) => (
+                      <div key={idx} className="flex align-items-start gap-3">
+                        <div className="p-2 bg-blue-50 rounded-full">
+                          <i className={`pi ${a.icon} text-blue-500`}></i>
+                        </div>
+                        <div>
+                          <div className="font-medium text-gray-900">{a.titre}</div>
+                          <div className="text-sm text-gray-500">{a.date} • {a.heure}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+            </div>
           </div>
         ) : activeSection === 'paiements' ? (
           <div className="p-4 md:p-6">
@@ -250,6 +481,77 @@ const DashboardIntervenant: React.FC = () => {
               intervenantId={intervenantId}
               className="mb-4"
             />
+          </div>
+        ) : activeSection === 'factures' ? (
+          <div className="factures-container">
+            <div className="p-4 md:p-6">
+              <FactureListIntervenant />
+            </div>
+            <div className="p-4 md:p-6">
+              <div className="mb-6">
+                <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Factures</h1>
+                    <p className="text-gray-600">Consultez et gérez vos factures</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid mb-6">
+                <div className="col-12 md:col-3">
+                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                    <div className="flex justify-content-between align-items-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">€{stats.revenusMois}</div>
+                        <div className="text-sm text-gray-500">Revenus ce mois</div>
+                      </div>
+                      <div className="p-3 bg-blue-100 border-round-lg">
+                        <i className="pi pi-euro text-blue-600 text-xl"></i>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                <div className="col-12 md:col-3">
+                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                    <div className="flex justify-content-between align-items-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{stats.missionsEnCours}</div>
+                        <div className="text-sm text-gray-500">Missions en cours</div>
+                      </div>
+                      <div className="p-3 bg-green-100 border-round-lg">
+                        <i className="pi pi-briefcase text-green-600 text-xl"></i>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                <div className="col-12 md:col-3">
+                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                    <div className="flex justify-content-between align-items-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{stats.tauxOccupation}%</div>
+                        <div className="text-sm text-gray-500">Taux d'occupation</div>
+                      </div>
+                      <div className="p-3 bg-orange-100 border-round-lg">
+                        <i className="pi pi-chart-line text-orange-600 text-xl"></i>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+                <div className="col-12 md:col-3">
+                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
+                    <div className="flex justify-content-between align-items-center">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{stats.satisfaction}/5</div>
+                        <div className="text-sm text-gray-500">Satisfaction</div>
+                      </div>
+                      <div className="p-3 bg-purple-100 border-round-lg">
+                        <i className="pi pi-star text-purple-600 text-xl"></i>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <>
@@ -354,6 +656,15 @@ const DashboardIntervenant: React.FC = () => {
               </Card>
             </div>
           </div>
+
+          <div className="grid">
+            <div className="col-12">
+              <Card title="Vos prochaines missions" className="shadow-sm mb-4">
+                <p className="text-gray-600">Aucune mission prévue pour le moment.</p>
+              </Card>
+            </div>
+          </div>
+
 
           <div className="grid">
             {/* Colonne Gauche */}
