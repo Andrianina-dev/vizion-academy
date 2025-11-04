@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import Sidebar from '../Sidebar/Sidebar';
+import { NotificationBell } from '../../Notifications/NotificationBell';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -26,7 +27,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, onSelect, a
 
   const end = (
     <div className="flex align-items-center gap-2">
-      <Button icon="pi pi-bell" className="p-button-text" />
+      <NotificationBell />
       <Button icon="pi pi-user" className="p-button-text" />
     </div>
   );

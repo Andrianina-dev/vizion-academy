@@ -10,7 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/date-fns": "^2.5.3",
     "axios": "^1.12.2",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.552.0",
     "primeflex": "^4.0.0",
     "primeicons": "^7.0.0",
     "primereact": "^10.9.7",

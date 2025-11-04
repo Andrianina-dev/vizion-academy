@@ -1,919 +1,468 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
-import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
-import { Badge } from 'primereact/badge';
-import { Avatar } from 'primereact/avatar';
 import { ProgressBar } from 'primereact/progressbar';
-import { Sidebar } from 'primereact/sidebar';
-import { Menu } from 'primereact/menu';
-import type { MenuItem } from 'primereact/menuitem';
+import { Skeleton } from 'primereact/skeleton';
+import { Toast } from 'primereact/toast';
+import { Avatar } from 'primereact/avatar';
 
+import DashboardIntervenantLayout from '../../components/layout/DashboardIntervenantLayout/DashboardIntervenantLayout';
 import FactureListIntervenant from '../../components/FactureListIntervenant';
 import PaiementsEnAttente from '../../components/Paiements/PaiementsEnAttente';
-import DeclarationActivites from '../../components/Paiements/DeclarationActivites';
 import ProfilPublic from '../../components/Profil/ProfilPublic';
-const API_URL = import.meta.env.VITE_API_URL;
+import { getIntervenantConnecte } from '../../services/intervenantService';
+import type { Facture } from '../../services/factureService';
+import type { ProfilIntervenant } from '../../services/profilService';
+import { fetchFactures } from '../../services/factureService';
+import { fetchPaiementsEnAttente } from '../../services/paiementService';
+import { fetchProfil } from '../../services/profilService';
 
-interface Profile {
-  bio: string;
-  competences: string;
-  // Add other profile fields as needed
+interface DashboardStats {
+  revenusMois: number;
+  missionsEnCours: number;
+  tauxOccupation: number;
+  satisfaction: number;
+}
+
+interface MissionRealisee {
+  ecole: string;
+  date: string;
+  tauxHoraire: number;
+  heures: number;
+  intitule: string;
 }
 
 const DashboardIntervenant: React.FC = () => {
-  const [sidebarVisible, setSidebarVisible] = useState(false);
+  // États pour la navigation
+  const [activeSection, setActiveSection] = useState<string>('dashboard'); 
+  
+  // États pour les données
+  const [factures, setFactures] = useState<Facture[]>([]);
   const [paiements, setPaiements] = useState<any[]>([]);
-  const [profil, setProfil] = useState<Profile>({
-    bio: '',
-    competences: '',
-    // Initialize other profile fields here
+  const [intervenant, setIntervenant] = useState<{ prenom?: string; nom?: string } | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    revenusMois: 0,
+    missionsEnCours: 0,
+    tauxOccupation: 0,
+    satisfaction: 0
   });
+  
+  // États de chargement
+  const [loading, setLoading] = useState({
+    factures: false,
+    paiements: false,
+    profil: false,
+    stats: false
+  });
+  
+  const [error, setError] = useState<string | null>(null);
+  const toast = React.useRef<Toast>(null);
+  
+  // Récupérer l'intervenant connecté
+  const intervenantId = intervenant?.id_intervenant;
 
-  const activites = [
-    {
-      icon: 'pi-calendar',
-      titre: 'Nouvelle mission assignée',
-      date: '3 Nov 2025',
-      heure: '14:30'
-    },
-    {
-      icon: 'pi-check-circle',
-      titre: 'Mission complétée',
-      date: '2 Nov 2025',
-      heure: '16:45'
-    },
-    {
-      icon: 'pi-envelope',
-      titre: 'Message reçu',
-      date: '1 Nov 2025',
-      heure: '09:15'
-    }
-  ];
-
-  const [activeSection, setActiveSection] = useState('tableau-de-bord');
-
-  React.useEffect(() => {
-    if (activeSection === 'factures') {
-      const raw = localStorage.getItem('intervenant_connecte');
-      const interv = raw ? JSON.parse(raw) : null;
-      const id = interv?.id_intervenant || '(inconnu)';
-      console.log(`[DashboardIntervenant] Factures -> POST ${API_URL}/api/factures/intervenant/${id}/generate-latest`);
-      console.log(`[DashboardIntervenant] Factures -> GET  ${API_URL}/api/factures/intervenant/${id}`);
-    }
-  }, [activeSection]);
-
-  React.useEffect(() => {
-    if (activeSection !== 'paiements') return;
-    const raw = localStorage.getItem('intervenant_connecte');
-    const interv = raw ? JSON.parse(raw) : null;
-    const id = interv?.id_intervenant;
-    if (!id) return;
-    console.log(`[DashboardIntervenant] Paiements -> GET ${API_URL}/api/paiements/intervenant/${id}/pending`);
-    fetch(`${API_URL}/api/paiements/intervenant/${id}/pending`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(j => {
-        if (j && j.success) setPaiements(Array.isArray(j.data) ? j.data : []);
-        else setPaiements([]);
-      })
-      .catch(() => setPaiements([]));
-  }, [activeSection]);
-
-  // Données statiques (mock)
-  const factures = [
-    { id: 'FAC-2025-001', statut: 'payee', montant: 420, date: '2025-10-01' },
-    { id: 'FAC-2025-002', statut: 'en attente', montant: 260, date: '2025-10-07' },
-    { id: 'FAC-2025-003', statut: 'en validation', montant: 320, date: '2025-10-15' },
-  ];
-
-  const paiementsEnAttente = [
-    { virement: 'VIR-8841', dateEstimee: '2025-11-05', motif: '-', montant: 260 },
-    { virement: 'VIR-8842', dateEstimee: '2025-11-12', motif: 'Validation facture', montant: 320 },
-  ];
-
-  const missionsRealisees = [
-    { ecole: 'Lycée Lumière', date: '2025-10-03', tauxHoraire: 40, heures: 6, intitule: 'Atelier IA' },
-    { ecole: 'Collège Victor Hugo', date: '2025-10-10', tauxHoraire: 45, heures: 4, intitule: 'Robotique' },
-  ];
-
-  // Récupérer l'ID de l'intervenant connecté
-  const intervenantId = localStorage.getItem('intervenant_connecte') 
-    ? JSON.parse(localStorage.getItem('intervenant_connecte')!).id_intervenant 
-    : null;
-
-  // Menu items pour la sidebar
-  const menuItems: MenuItem[] = [
-    {
-      label: 'Tableau de Bord',
-      icon: 'pi pi-home',
-      command: () => setActiveSection('dashboard'),
-      template: (item, options) => (
-        <a className={options.className} onClick={() => setActiveSection('dashboard')}>
-          {item.icon && <span className={options.iconClassName}></span>}
-          <span className={options.labelClassName}>{item.label}</span>
-        </a>
-      )
-    },
-    {
-      label: 'Factures',
-      icon: 'pi pi-file-pdf',
-      template: (item, options) => (
-        <a className={options.className} onClick={() => setActiveSection('factures')}>
-          {item.icon && <span className={options.iconClassName}></span>}
-          <span className={options.labelClassName}>{item.label}</span>
-          {factures.length > 0 && <Badge value={factures.length} className="ml-2" />}
-        </a>
-      ),
-      command: () => setActiveSection('factures')
-    },
-    {
-      label: 'Missions',
-      icon: 'pi pi-briefcase',
-      items: [
-        {
-          label: 'Missions en cours',
-          icon: 'pi pi-clock',
-          command: () => setActiveSection('missions-cours')
-        },
-        {
-          label: 'Missions réalisées',
-          icon: 'pi pi-check-circle',
-          command: () => setActiveSection('missions-realisees')
-        },
-        {
-          label: 'Planning',
-          icon: 'pi pi-calendar',
-          command: () => setActiveSection('planning')
+  // Charger les données en fonction de la section active
+  useEffect(() => {
+    const loadData = async () => {
+      if (!intervenantId) return;
+      
+      try {
+        switch (activeSection) {
+          case 'factures':
+            setLoading(prev => ({ ...prev, factures: true }));
+            const facturesData = await fetchFactures();
+            setFactures(facturesData);
+            break;
+            
+          case 'paiements':
+            setLoading(prev => ({ ...prev, paiements: true }));
+            const paiementsData = await fetchPaiementsEnAttente();
+            setPaiements(paiementsData);
+            break;
+            
+          case 'profil':
+            setLoading(prev => ({ ...prev, profil: true }));
+            const profilData = await fetchProfil();
+            setIntervenant(profilData);
+            break;
+            
+          case 'dashboard':
+          default:
+            // Charger les statistiques pour le tableau de bord
+            setLoading(prev => ({ ...prev, stats: true }));
+            // Ici vous pourriez ajouter un appel à un service de statistiques
+            const dashboardStats = await fetchDashboardStats();
+            setStats(dashboardStats);
+            break;
         }
-      ]
-    },
-    {
-      label: 'Paiements',
-      icon: 'pi pi-euro',
-      template: (item, options) => (
-        <a className={options.className} onClick={options.onClick}>
-          {item.icon && <span className={options.iconClassName}></span>}
-          <span className={options.labelClassName}>{item.label}</span>
-          <Badge value={paiements.length} className="ml-2" />
-        </a>
-      ),
-      command: () => setActiveSection('paiements')
-    },
-    {
-      label: 'Déclarations',
-      icon: 'pi pi-chart-bar',
-      command: () => setActiveSection('declarations')
-    },
-    {
-      label: 'Profil',
-      icon: 'pi pi-user',
-      command: () => setActiveSection('profil'),
-      template: (item, options) => (
-        <a className={options.className} onClick={() => setActiveSection('profil')}>
-          {item.icon && <span className={options.iconClassName}></span>}
-          <span className={options.labelClassName}>{item.label}</span>
-        </a>
-      )
-    },
-    {
-      label: 'Documents',
-      icon: 'pi pi-folder',
-      command: () => setActiveSection('documents')
-    },
-    {
-      separator: true
-    },
-    {
-      label: 'Paramètres',
-      icon: 'pi pi-cog',
-      command: () => setActiveSection('parametres')
-    },
-    {
-      label: 'Support',
-      icon: 'pi pi-question-circle',
-      command: () => setActiveSection('support')
-    }
-  ];
-
+      } catch (err) {
+        console.error(`Erreur lors du chargement des données pour ${activeSection}:`, err);
+        setError('Une erreur est survenue lors du chargement des données');
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: 'Impossible de charger les données',
+          life: 3000
+        });
+      } finally {
+        setLoading(prev => ({
+          ...prev,
+          factures: activeSection === 'factures' ? false : prev.factures,
+          paiements: activeSection === 'paiements' ? false : prev.paiements,
+          profil: activeSection === 'profil' ? false : prev.profil,
+          stats: activeSection === 'dashboard' ? false : prev.stats
+        }));
+      }
+    };
+    
+    loadData();
+  }, [activeSection, intervenantId]);
+  
+  // Fonction pour simuler le chargement des statistiques (à remplacer par un vrai appel API)
+  const fetchDashboardStats = async (): Promise<DashboardStats> => {
+    // Simuler un appel API
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          revenusMois: 980,
+          missionsEnCours: 2,
+          tauxOccupation: 75,
+          satisfaction: 4.8
+        });
+      }, 500);
+    });
+  };
+  
+  // Gestion du changement de section
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
+    setError(null);
+  };
+  
+  // Fonction utilitaire pour le formatage des statuts
   const statutTemplate = (statut: string) => {
-    const map: Record<string, { label: string; severity: 'success' | 'warning' | 'info' }> = {
+    type Severity = 'success' | 'warning' | 'info' | 'danger';
+    const map: Record<string, { label: string; severity: Severity }> = {
       'payee': { label: 'Payée', severity: 'success' },
+      'payé': { label: 'Payé', severity: 'success' },
       'en attente': { label: 'En attente', severity: 'warning' },
       'en validation': { label: 'En validation', severity: 'info' },
+      'validé': { label: 'Validé', severity: 'success' },
+      'bloqué': { label: 'Bloqué', severity: 'danger' },
     };
-    const s = map[statut] || { label: statut, severity: 'info' };
+    
+    const normalizedStatut = statut.toLowerCase();
+    const s = map[normalizedStatut] || { label: statut, severity: 'info' as Severity };
     return <Tag value={s.label} severity={s.severity} className="text-xs font-semibold" />;
   };
 
-  // Statistiques
-  const stats = {
-    revenusMois: 980,
-    missionsEnCours: 2,
-    tauxOccupation: 75,
-    satisfaction: 4.8
-  };
-
-  return (
-    <div className="min-h-screen flex bg-gray-50">
-      {/* Sidebar Desktop */}
-      <div className="hidden lg:block w-80 bg-white shadow-lg border-r border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex align-items-center gap-3">
-            <Avatar 
-              icon="pi pi-graduation-cap" 
-              size="large" 
-              className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg" 
-              shape="circle" 
-            />
-            <div>
-              <div className="font-bold text-gray-900">Vizion Academy</div>
-              <div className="text-sm text-gray-500">Espace Intervenant</div>
-            </div>
-          </div>
-        </div>
-
+  // Rendu du contenu en fonction de la section active
+  const renderContent = () => {
+    if (error) {
+      return (
         <div className="p-4">
-          <Menu 
-            model={menuItems} 
-            className="border-none w-full"
-            pt={{
-              root: { className: 'border-none' },
-              menuitem: { className: 'mb-1' },
-              icon: { className: 'text-gray-600' },
-              label: { className: 'text-gray-700 font-medium' },
-              action: { className: 'hover:bg-gray-100 rounded-lg transition-colors duration-200' }
-            }}
-          />
-        </div>
-
-      </div>
-
-      {/* Contenu Principal */}
-      <div className="flex-1 overflow-auto">
-        {activeSection === 'profil' ? (
-          <div className="p-4 md:p-6">
-            <ProfilPublic className="mb-4" />
-          </div>
-        ) : activeSection === 'declarations' ? (
-          <div className="p-4 md:p-6">
-            <Card title="Déclaration d'Activités" className="shadow-sm">
-              <DeclarationActivites />
-            </Card>
-          </div>
-        ) : activeSection === 'dashboard' ? (
-          <div className="p-4 md:p-6">
-            {/* Header Desktop */}
-            <div className="mb-6 hidden lg:block">
-              <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Tableau de Bord</h1>
-                  <p className="text-gray-600">Bienvenue dans votre espace intervenant Vizion Academy</p>
-                </div>
-                <div className="flex align-items-center gap-3">
-                  <Avatar 
-                    icon="pi pi-user" 
-                    size="large" 
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg" 
-                    shape="circle" 
-                  />
-                  <div>
-                    <div className="font-semibold text-gray-900">Expert STEM</div>
-                    <div className="text-sm text-gray-500">Intervenant Vizion Academy</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Statistiques Rapides */}
-            <div className="grid mb-6">
-              <div className="col-12 md:col-3">
-                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex justify-content-between align-items-center">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">€{stats.revenusMois}</div>
-                      <div className="text-sm text-gray-500">Revenus ce mois</div>
-                    </div>
-                    <div className="p-3 bg-blue-100 border-round-lg">
-                      <i className="pi pi-euro text-blue-600 text-xl"></i>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-              <div className="col-12 md:col-3">
-                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex justify-content-between align-items-center">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.missionsEnCours}</div>
-                      <div className="text-sm text-gray-500">Missions en cours</div>
-                    </div>
-                    <div className="p-3 bg-green-100 border-round-lg">
-                      <i className="pi pi-briefcase text-green-600 text-xl"></i>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-              <div className="col-12 md:col-3">
-                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex justify-content-between align-items-center">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.tauxOccupation}%</div>
-                      <div className="text-sm text-gray-500">Taux d'occupation</div>
-                    </div>
-                    <div className="p-3 bg-orange-100 border-round-lg">
-                      <i className="pi pi-chart-line text-orange-600 text-xl"></i>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-              <div className="col-12 md:col-3">
-                <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex justify-content-between align-items-center">
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">{stats.satisfaction}/5</div>
-                      <div className="text-sm text-gray-500">Satisfaction</div>
-                    </div>
-                    <div className="p-3 bg-purple-100 border-round-lg">
-                      <i className="pi pi-star text-purple-600 text-xl"></i>
-                    </div>
-                  </div>
-                </Card>
-              </div>
-            </div>
-
-            <div className="grid">
-              <div className="col-12">
-                <Card title="Vos prochaines missions" className="shadow-sm mb-4">
-                  <p className="text-gray-600">Aucune mission prévue pour le moment.</p>
-                </Card>
-              </div>
-            </div>
-
-            <div className="grid">
-              {/* Colonne Gauche */}
-              <div className="col-12 lg:col-8">
-                {/* Factures */}
-                <Card 
-                  title={
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-file-pdf text-blue-500"></i>
-                      <span>Factures Générées</span>
-                      <Badge value={factures.length} className="ml-2 bg-blue-500" />
-                    </div>
-                  }
-                  className="shadow-sm mb-4"
-                >
-                  <div className="grid">
-                    {factures.map((f) => (
-                      <div key={f.id} className="col-12 md:col-6 lg:col-4 mb-3">
-                        <div className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
-                          <div className="flex justify-content-between align-items-start mb-3">
-                            <div className="font-semibold text-gray-900">{f.id}</div>
-                            {statutTemplate(f.statut)}
-                          </div>
-                          <div className="text-2xl font-bold text-gray-900 mb-2">{f.montant} €</div>
-                          <div className="text-sm text-gray-500 mb-3">Échéance: {f.date}</div>
-                          <Button 
-                            icon="pi pi-download" 
-                            label="Télécharger" 
-                            className="p-button-outlined p-button-sm w-full" 
-                            onClick={() => alert(`Téléchargement ${f.id}.pdf`)}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* Missions Réalisées */}
-                <Card 
-                  title={
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-briefcase text-green-500"></i>
-                      <span>Missions Réalisées</span>
-                    </div>
-                  }
-                  className="shadow-sm mb-4"
-                >
-                  <div className="space-y-3">
-                    {missionsRealisees.map((m, idx) => (
-                      <div key={idx} className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
-                        <div className="flex justify-content-between align-items-start mb-3">
-                          <div>
-                            <div className="font-semibold text-gray-900 text-lg">{m.intitule}</div>
-                            <div className="text-sm text-gray-500">{m.ecole}</div>
-                          </div>
-                          <Tag value={`${m.tauxHoraire}€/h`} severity="info" />
-                        </div>
-                        <div className="grid">
-                          <div className="col-6">
-                            <div className="text-sm text-gray-500">Date</div>
-                            <div className="font-medium">{m.date}</div>
-                          </div>
-                          <div className="col-6">
-                            <div className="text-sm text-gray-500">Volume horaire</div>
-                            <div className="font-medium">{m.heures} heures</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-
-              {/* Colonne Droite */}
-              <div className="col-12 lg:col-4">
-                {/* Prochains paiements */}
-                <Card 
-                  title={
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-wallet text-yellow-500"></i>
-                      <span>Prochains Paiements</span>
-                    </div>
-                  }
-                  className="shadow-sm mb-4"
-                >
-                  <div className="space-y-3">
-                    {paiements.map((p, idx) => (
-                      <div key={idx} className="p-3 border-round-lg border-1 surface-100">
-                        <div className="flex justify-content-between align-items-center mb-2">
-                          <span className="font-medium text-gray-900">{p.montant} €</span>
-                          <Tag value={p.statut} severity={p.statut === 'Payé' ? 'success' : 'warning'} />
-                        </div>
-                        <div className="text-sm text-gray-500">{p.date}</div>
-                        <div className="text-sm">{p.libelle}</div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* Dernières activités */}
-                <Card 
-                  title={
-                    <div className="flex align-items-center gap-2">
-                      <i className="pi pi-history text-purple-500"></i>
-                      <span>Dernières Activités</span>
-                    </div>
-                  }
-                  className="shadow-sm"
-                >
-                  <div className="space-y-3">
-                    {activites.map((a, idx) => (
-                      <div key={idx} className="flex align-items-start gap-3">
-                        <div className="p-2 bg-blue-50 rounded-full">
-                          <i className={`pi ${a.icon} text-blue-500`}></i>
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{a.titre}</div>
-                          <div className="text-sm text-gray-500">{a.date} • {a.heure}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
-            </div>
-          </div>
-        ) : activeSection === 'paiements' ? (
-          <div className="p-4 md:p-6">
-            <PaiementsEnAttente 
-              intervenantId={intervenantId}
-              className="mb-4"
+          <div className="p-4 border-round-md bg-red-50 text-red-800">
+            <i className="pi pi-exclamation-triangle mr-2"></i>
+            {error}
+            <Button 
+              label="Réessayer" 
+              className="p-button-text p-button-sm ml-3" 
+              onClick={() => handleSectionChange(activeSection)}
             />
           </div>
-        ) : activeSection === 'factures' ? (
-          <div className="factures-container">
-            <div className="p-4 md:p-6">
-              <FactureListIntervenant />
-            </div>
-            <div className="p-4 md:p-6">
-              <div className="mb-6">
-                <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Mes Factures</h1>
-                    <p className="text-gray-600">Consultez et gérez vos factures</p>
-                  </div>
-                </div>
-              </div>
+        </div>
+      );
+    }
 
-              <div className="grid mb-6">
-                <div className="col-12 md:col-3">
-                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                    <div className="flex justify-content-between align-items-center">
-                      <div>
-                        <div className="text-2xl font-bold text-gray-900">€{stats.revenusMois}</div>
-                        <div className="text-sm text-gray-500">Revenus ce mois</div>
-                      </div>
-                      <div className="p-3 bg-blue-100 border-round-lg">
-                        <i className="pi pi-euro text-blue-600 text-xl"></i>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-                <div className="col-12 md:col-3">
-                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                    <div className="flex justify-content-between align-items-center">
-                      <div>
-                        <div className="text-2xl font-bold text-gray-900">{stats.missionsEnCours}</div>
-                        <div className="text-sm text-gray-500">Missions en cours</div>
-                      </div>
-                      <div className="p-3 bg-green-100 border-round-lg">
-                        <i className="pi pi-briefcase text-green-600 text-xl"></i>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-                <div className="col-12 md:col-3">
-                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                    <div className="flex justify-content-between align-items-center">
-                      <div>
-                        <div className="text-2xl font-bold text-gray-900">{stats.tauxOccupation}%</div>
-                        <div className="text-sm text-gray-500">Taux d'occupation</div>
-                      </div>
-                      <div className="p-3 bg-orange-100 border-round-lg">
-                        <i className="pi pi-chart-line text-orange-600 text-xl"></i>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-                <div className="col-12 md:col-3">
-                  <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                    <div className="flex justify-content-between align-items-center">
-                      <div>
-                        <div className="text-2xl font-bold text-gray-900">{stats.satisfaction}/5</div>
-                        <div className="text-sm text-gray-500">Satisfaction</div>
-                      </div>
-                      <div className="p-3 bg-purple-100 border-round-lg">
-                        <i className="pi pi-star text-purple-600 text-xl"></i>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-        {/* Header Mobile avec bouton menu */}
-        <div className="bg-white shadow-sm border-b border-gray-200 lg:hidden">
-          <div className="p-4 flex align-items-center justify-content-between">
-            <div className="flex align-items-center gap-3">
+    switch (activeSection) {
+      case 'factures':
+        return (
+          <div className="p-4">
+            <div className="flex justify-content-between align-items-center mb-4">
+              <h2 className="text-xl font-semibold">Mes factures</h2>
               <Button 
-                icon="pi pi-bars" 
-                className="p-button-text p-button-sm"
-                onClick={() => setSidebarVisible(true)}
+                label="Générer une facture" 
+                icon="pi pi-plus" 
+                className="p-button-outlined"
+                onClick={() => {}}
               />
-              <div>
-                <div className="font-bold text-gray-900">Vizion Academy</div>
-                <div className="text-sm text-gray-500">Intervenant</div>
+            </div>
+            {loading.factures ? (
+              <div className="card">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} width="100%" height="4rem" className="mb-2" />
+                ))}
               </div>
-            </div>
-            <Avatar 
-              icon="pi pi-user" 
-              size="normal" 
-              className="bg-gradient-to-r from-blue-500 to-purple-600" 
-              shape="circle" 
-            />
+            ) : (
+              <FactureListIntervenant />
+            )}
           </div>
-        </div>
+        );
 
-        <div className="p-4 md:p-6">
-          {/* Header Desktop */}
-          <div className="mb-6 hidden lg:block">
-            <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Tableau de Bord</h1>
-                <p className="text-gray-600">Bienvenue dans votre espace intervenant Vizion Academy</p>
+      case 'paiements':
+        return (
+          <div className="p-4">
+            <h2 className="text-xl font-semibold mb-4">Paiements en attente</h2>
+            {loading.paiements ? (
+              <div className="card">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} width="100%" height="6rem" className="mb-3" />
+                ))}
               </div>
-              <div className="flex align-items-center gap-3">
-                <Avatar 
-                  icon="pi pi-user" 
-                  size="large" 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg" 
-                  shape="circle" 
-                />
-                <div>
-                  <div className="font-semibold text-gray-900">Expert STEM</div>
-                  <div className="text-sm text-gray-500">Intervenant Vizion Academy</div>
-                </div>
+            ) : (
+              <PaiementsEnAttente 
+                intervenantId={intervenantId} 
+                className="mb-4" 
+              />
+            )}
+          </div>
+        );
+
+      case 'profil':
+        return (
+          <div className="p-4">
+            {loading.profil ? (
+              <div className="card">
+                <Skeleton width="100%" height="20rem" />
               </div>
-            </div>
+            ) : (
+              <ProfilPublic className="mb-4" />
+            )}
           </div>
+        );
 
-          {/* Statistiques Rapides */}
-          <div className="grid mb-6">
-            <div className="col-12 md:col-3">
-              <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                <div className="flex justify-content-between align-items-center">
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">€{stats.revenusMois}</div>
-                    <div className="text-sm text-gray-500">Revenus ce mois</div>
-                  </div>
-                  <div className="p-3 bg-blue-100 border-round-lg">
-                    <i className="pi pi-euro text-blue-600 text-xl"></i>
-                  </div>
-                </div>
-              </Card>
-            </div>
-            <div className="col-12 md:col-3">
-              <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                <div className="flex justify-content-between align-items-center">
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.missionsEnCours}</div>
-                    <div className="text-sm text-gray-500">Missions en cours</div>
-                  </div>
-                  <div className="p-3 bg-green-100 border-round-lg">
-                    <i className="pi pi-briefcase text-green-600 text-xl"></i>
-                  </div>
-                </div>
-              </Card>
-            </div>
-            <div className="col-12 md:col-3">
-              <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                <div className="flex justify-content-between align-items-center">
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.tauxOccupation}%</div>
-                    <div className="text-sm text-gray-500">Taux d'occupation</div>
-                  </div>
-                  <div className="p-3 bg-orange-100 border-round-lg">
-                    <i className="pi pi-chart-line text-orange-600 text-xl"></i>
-                  </div>
-                </div>
-              </Card>
-            </div>
-            <div className="col-12 md:col-3">
-              <Card className="shadow-sm border-1 border-200 hover:shadow-md transition-all duration-300">
-                <div className="flex justify-content-between align-items-center">
-                  <div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.satisfaction}/5</div>
-                    <div className="text-sm text-gray-500">Satisfaction</div>
-                  </div>
-                  <div className="p-3 bg-purple-100 border-round-lg">
-                    <i className="pi pi-star text-purple-600 text-xl"></i>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-
-          <div className="grid">
-            <div className="col-12">
-              <Card title="Vos prochaines missions" className="shadow-sm mb-4">
-                <p className="text-gray-600">Aucune mission prévue pour le moment.</p>
-              </Card>
-            </div>
-          </div>
-
-
-          <div className="grid">
-            {/* Colonne Gauche */}
-            <div className="col-12 lg:col-8">
-              {/* Factures */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-file-pdf text-blue-500"></i>
-                    <span>Factures Générées</span>
-                    <Badge value={factures.length} className="ml-2 bg-blue-500" />
-                  </div>
-                }
-                className="shadow-sm mb-4"
-              >
-                <div className="grid">
-                  {factures.map((f) => (
-                    <div key={f.id} className="col-12 md:col-6 lg:col-4 mb-3">
-                      <div className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
-                        <div className="flex justify-content-between align-items-start mb-3">
-                          <div className="font-semibold text-gray-900">{f.id}</div>
-                          {statutTemplate(f.statut)}
+      case 'dashboard':
+      default:
+        return (
+          <div className="p-4">
+            <h1 className="text-2xl font-bold mb-6">Tableau de bord</h1>
+            
+            {/* Cartes de statistiques */}
+            <div className="grid">
+              <div className="col-12 md:col-6 lg:col-3">
+                <Card className="shadow-1 mb-4">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <span className="block text-500 font-medium mb-1">Revenus du mois</span>
+                      {loading.stats ? (
+                        <Skeleton width="6rem" height="2rem" />
+                      ) : (
+                        <div className="text-900 font-medium text-xl">
+                          {stats.revenusMois.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
                         </div>
-                        <div className="text-2xl font-bold text-gray-900 mb-2">{f.montant} €</div>
-                        <div className="text-sm text-gray-500 mb-3">Échéance: {f.date}</div>
+                      )}
+                    </div>
+                    <div className="bg-blue-100 p-3 border-round" style={{ borderRadius: '50%' }}>
+                      <i className="pi pi-euro text-blue-500 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              
+              <div className="col-12 md:col-6 lg:col-3">
+                <Card className="shadow-1 mb-4">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <span className="block text-500 font-medium mb-1">Missions en cours</span>
+                      {loading.stats ? (
+                        <Skeleton width="4rem" height="2rem" />
+                      ) : (
+                        <div className="text-900 font-medium text-xl">{stats.missionsEnCours}</div>
+                      )}
+                    </div>
+                    <div className="bg-green-100 p-3 border-round" style={{ borderRadius: '50%' }}>
+                      <i className="pi pi-briefcase text-green-500 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+              
+              <div className="col-12 md:col-6 lg:col-3">
+                <Card className="shadow-1 mb-4">
+                  <div className="flex flex-column">
+                    <span className="block text-500 font-medium mb-2">Taux d'occupation</span>
+                    {loading.stats ? (
+                      <Skeleton width="100%" height="1.5rem" />
+                    ) : (
+                      <>
+                        <div className="text-900 font-medium text-xl mb-2">{stats.tauxOccupation}%</div>
+                        <ProgressBar 
+                          value={stats.tauxOccupation} 
+                          showValue={false} 
+                          style={{ height: '6px' }} 
+                        />
+                      </>
+                    )}
+                  </div>
+                </Card>
+              </div>
+              
+              <div className="col-12 md:col-6 lg:col-3">
+                <Card className="shadow-1 mb-4">
+                  <div className="flex justify-content-between align-items-center">
+                    <div>
+                      <span className="block text-500 font-medium mb-1">Satisfaction</span>
+                      {loading.stats ? (
+                        <Skeleton width="4rem" height="2rem" />
+                      ) : (
+                        <div className="flex align-items-center">
+                          <span className="text-900 font-medium text-xl mr-2">{stats.satisfaction}</span>
+                          <i className="pi pi-star-fill text-yellow-500"></i>
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-yellow-100 p-3 border-round" style={{ borderRadius: '50%' }}>
+                      <i className="pi pi-star text-yellow-500 text-xl"></i>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+            
+            {/* Dernières factures */}
+            <div className="grid">
+              <div className="col-12 xl:col-8">
+                <Card title="Dernières factures" className="shadow-1 mb-4">
+                  {loading.factures ? (
+                    <div className="card">
+                      {[...Array(3)].map((_, i) => (
+                        <Skeleton key={i} width="100%" height="4rem" className="mb-2" />
+                      ))}
+                    </div>
+                  ) : factures.length > 0 ? (
+                    <div className="border-round border-1 surface-border">
+                      {factures.slice(0, 3).map((facture, index) => (
+                        <div 
+                          key={facture.id_facture} 
+                          className={`p-3 border-bottom-1 surface-border flex justify-content-between align-items-center ${
+                            index % 2 === 0 ? 'bg-gray-50' : ''
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium">{facture.titre_mission}</div>
+                            <div className="text-500 text-sm">{facture.nom_ecole}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">
+                              {facture.montant_calcule?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            </div>
+                            <div className="text-500 text-sm">
+                              {new Date(facture.date_creation).toLocaleDateString('fr-FR')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-4 text-500">
+                      Aucune facture disponible
+                    </div>
+                  )}
+                  <div className="mt-3 text-right">
+                    <Button 
+                      label="Voir toutes les factures" 
+                      className="p-button-text" 
+                      onClick={() => handleSectionChange('factures')}
+                    />
+                  </div>
+                </Card>
+              </div>
+              
+              {/* Prochain paiement */}
+              <div className="col-12 xl:col-4">
+                <Card title="Prochain paiement" className="shadow-1 mb-4">
+                  {loading.paiements ? (
+                    <div className="card">
+                      <Skeleton width="100%" height="6rem" />
+                    </div>
+                  ) : paiements.length > 0 ? (
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-primary mb-2">
+                        {paiements[0]?.montant?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                      </div>
+                      <div className="mb-3">
+                        <span className="text-500">Prévu pour le </span>
+                        <span className="font-medium">
+                          {new Date(paiements[0]?.date_estimee).toLocaleDateString('fr-FR', { 
+                            day: 'numeric', 
+                            month: 'long' 
+                          })}
+                        </span>
+                      </div>
+                      <span className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                        {paiements[0]?.motif || 'Régularisation'}
+                      </span>
+                      <div className="mt-4">
                         <Button 
-                          icon="pi pi-download" 
-                          label="Télécharger" 
-                          className="p-button-outlined p-button-sm w-full" 
-                          onClick={() => alert(`Téléchargement ${f.id}.pdf`)}
+                          label="Voir les détails" 
+                          className="p-button-outlined p-button-sm"
+                          onClick={() => handleSectionChange('paiements')}
                         />
                       </div>
                     </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Missions Réalisées */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-briefcase text-green-500"></i>
-                    <span>Missions Réalisées</span>
-                  </div>
-                }
-                className="shadow-sm mb-4"
-              >
-                <div className="space-y-3">
-                  {missionsRealisees.map((m, idx) => (
-                    <div key={idx} className="p-4 border-round-xl border-1 surface-100 hover:surface-200 transition-all duration-300">
-                      <div className="flex justify-content-between align-items-start mb-3">
-                        <div>
-                          <div className="font-semibold text-gray-900 text-lg">{m.intitule}</div>
-                          <div className="text-sm text-gray-500">{m.ecole}</div>
-                        </div>
-                        <Tag value={`${m.tauxHoraire}€/h`} severity="info" />
-                      </div>
-                      <div className="grid">
-                        <div className="col-6">
-                          <div className="text-sm text-gray-500">Date</div>
-                          <div className="font-medium">{m.date}</div>
-                        </div>
-                        <div className="col-6">
-                          <div className="text-sm text-gray-500">Volume horaire</div>
-                          <div className="font-medium">{m.heures} heures</div>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-top-1 surface-300">
-                        <div className="text-sm text-gray-500">Revenu généré</div>
-                        <div className="font-bold text-lg text-green-600">{m.tauxHoraire * m.heures} €</div>
-                      </div>
+                  ) : (
+                    <div className="text-center p-4 text-500">
+                      Aucun paiement en attente
                     </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Déclaration d'activité */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-chart-bar text-orange-500"></i>
-                    <span>Déclaration d'Activité</span>
-                  </div>
-                }
-                className="shadow-sm"
-              >
-                <DeclarationActivites />
-              </Card>
-            </div>
-
-            {/* Colonne Droite */}
-            <div className="col-12 lg:col-4">
-              {/* Paiements en attente */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-clock text-yellow-500"></i>
-                    <span>Paiements en Attente</span>
-                    <Badge value={paiementsEnAttente.length} className="ml-2 bg-yellow-500" />
-                  </div>
-                }
-                className="shadow-sm mb-4"
-              >
-                <div className="space-y-4">
-                  {paiementsEnAttente.map((p) => (
-                    <div key={p.virement} className="p-4 border-round-xl border-1 surface-100">
-                      <div className="flex justify-content-between align-items-center mb-2">
-                        <div className="font-semibold text-gray-900">{p.virement}</div>
-                        <div className="text-lg font-bold text-green-600">{p.montant} €</div>
-                      </div>
-                      <div className="text-sm text-gray-500 mb-3">Date estimée: {p.dateEstimee}</div>
-                      <ProgressBar value={60} className="h-2 mb-3" />
-                      <div className="text-xs text-gray-500">En cours de traitement</div>
+                  )}
+                </Card>
+                
+                {/* Profil rapide */}
+                <Card title="Mon profil" className="shadow-1">
+                  {loading.profil ? (
+                    <div className="flex flex-column align-items-center">
+                      <Skeleton shape="circle" size="5rem" className="mb-3" />
+                      <Skeleton width="8rem" height="1.5rem" className="mb-2" />
+                      <Skeleton width="12rem" height="1rem" className="mb-3" />
+                      <Skeleton width="100%" height="2.5rem" />
                     </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Notifications */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-bell text-purple-500"></i>
-                    <span>Notifications Récentes</span>
-                  </div>
-                }
-                className="shadow-sm mb-4"
-              >
-                <div className="space-y-3">
-                  <div className="flex align-items-start gap-3 p-3 border-round-lg bg-blue-50 border-1 border-blue-200">
-                    <i className="pi pi-file-pdf text-blue-500 mt-1"></i>
-                    <div>
-                      <div className="font-medium text-gray-900">Nouvelle facture générée</div>
-                      <div className="text-sm text-gray-600">FAC-2025-003 est disponible</div>
-                    </div>
-                  </div>
-                  <div className="flex align-items-start gap-3 p-3 border-round-lg bg-green-50 border-1 border-green-200">
-                    <i className="pi pi-check-circle text-green-500 mt-1"></i>
-                    <div>
-                      <div className="font-medium text-gray-900">Paiement validé</div>
-                      <div className="text-sm text-gray-600">VIR-8840 a été traité</div>
-                    </div>
-                  </div>
-                  <div className="flex align-items-start gap-3 p-3 border-round-lg bg-yellow-50 border-1 border-yellow-200">
-                    <i className="pi pi-user-edit text-yellow-500 mt-1"></i>
-                    <div>
-                      <div className="font-medium text-gray-900">Profil mis à jour</div>
-                      <div className="text-sm text-gray-600">Vos modifications ont été sauvegardées</div>
-                    </div>
-                  </div>
-                  <div className="flex align-items-start gap-3 p-3 border-round-lg bg-purple-50 border-1 border-purple-200">
-                    <i className="pi pi-briefcase text-purple-500 mt-1"></i>
-                    <div>
-                      <div className="font-medium text-gray-900">Nouvelle mission</div>
-                      <div className="text-sm text-gray-600">Atelier IA confirmé</div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Profil Rapide */}
-              <Card 
-                title={
-                  <div className="flex align-items-center gap-2">
-                    <i className="pi pi-user-edit text-gray-500"></i>
-                    <span>Profil Public</span>
-                  </div>
-                }
-                className="shadow-sm"
-              >
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <Avatar 
-                      icon="pi pi-user" 
-                      size="xlarge" 
-                      className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg mb-3" 
-                      shape="circle" 
-                    />
-                    <div className="font-semibold text-gray-900">Expert STEM</div>
-                    <div className="text-sm text-gray-500">Intervenant Vizion Academy</div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Bio</label>
-                    <InputTextarea 
-                      rows={3} 
-                      value={profil.bio} 
-                      onChange={(e) => setProfil({ ...profil, bio: e.target.value })} 
-                      className="w-full text-sm"
-                    />
-                  </div>
-
-                  <div className="grid">
-                    <div className="col-12">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Compétences</label>
-                      <InputText 
-                        value={profil.competences} 
-                        onChange={(e) => setProfil({ ...profil, competences: e.target.value })} 
-                        className="w-full text-sm"
+                  ) : (
+                    <div className="flex flex-column align-items-center">
+                      <Avatar 
+                        icon="pi pi-user" 
+                        size="xlarge" 
+                        shape="circle" 
+                        className="mb-3 bg-blue-100 text-blue-600"
+                        image={intervenant?.photo_url}
+                      />
+                      <h3 className="text-xl font-medium mb-1">
+                        {intervenant?.prenom} {intervenant?.nom}
+                      </h3>
+                      <p className="text-500 mb-4">{intervenant?.domaines?.[0] || 'Intervenant'}</p>
+                      <Button 
+                        label="Compléter mon profil" 
+                        icon="pi pi-user-edit" 
+                        className="p-button-outlined"
+                        onClick={() => handleSectionChange('profil')}
                       />
                     </div>
-                  </div>
-
-                  <Button 
-                    label="Mettre à jour le profil" 
-                    icon="pi pi-save" 
-                    className="w-full bg-gray-800 border-gray-800 hover:bg-gray-900 shadow-lg"
-                    onClick={() => alert('Profil enregistré')}
-                  />
-                </div>
-              </Card>
+                  )}
+                </Card>
+              </div>
             </div>
           </div>
-        </div>
-          </>
-        )}
-      </div>
+        );
+    }
+  };
 
-      {/* Sidebar Mobile */}
-      <Sidebar 
-        visible={sidebarVisible} 
-        onHide={() => setSidebarVisible(false)}
-        className="w-80"
-        position="left"
+  return (
+    <>
+      <Toast ref={toast} />
+      <DashboardIntervenantLayout 
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+        facturesCount={factures.filter(f => f.statut === 'en attente').length}
+        paiementsCount={paiements.length}
+        userInfo={{
+          name: intervenant ? `${intervenant.prenom} ${intervenant.nom}` : 'Intervenant',
+          role: 'Intervenant Vizion Academy',
+          avatar: intervenant?.photo_url || undefined
+        }}
       >
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex align-items-center gap-3">
-            <Avatar 
-              icon="pi pi-graduation-cap" 
-              size="large" 
-              className="bg-gradient-to-r from-blue-500 to-purple-600 shadow-lg" 
-              shape="circle" 
-            />
-            <div>
-              <div className="font-bold text-gray-900">Vizion Academy</div>
-              <div className="text-sm text-gray-500">Espace Intervenant</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4">
-          <Menu 
-            model={menuItems} 
-            className="border-none w-full"
-          />
-        </div>
-
-      </Sidebar>
-    </div>
+        {renderContent()}
+      </DashboardIntervenantLayout>
+    </>
   );
 };
 
