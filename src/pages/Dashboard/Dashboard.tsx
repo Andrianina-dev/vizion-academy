@@ -29,6 +29,7 @@ const Dashboard: React.FC = () => {
     <DashboardLayout
       onSelect={(section) => setActiveSection(section)}
       activeSection={activeSection}
+      intervenantId="" // Vous devrez peut-être récupérer l'ID de l'intervenant connecté ici
     >
       {activeSection === 'accueil' && (
         <div className="text-center">
