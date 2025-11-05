@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout/DashboardLayout';
 import MissionTable from '../../components/MissionTable';
 import ListeIntervenantsFavoris from '../../components/FavorisIntervenant'; // Ajout de l'import
@@ -18,6 +19,7 @@ interface Ecole {
 const Dashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState('accueil');
   const [ecole, setEcole] = useState<Ecole | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Récupérer l'école connectée au chargement du composant
@@ -27,7 +29,13 @@ const Dashboard: React.FC = () => {
 
   return (
     <DashboardLayout
-      onSelect={(section) => setActiveSection(section)}
+      onSelect={(section) => {
+        if (section === 'support') {
+          navigate('/support');
+        } else {
+          setActiveSection(section);
+        }
+      }}
       activeSection={activeSection}
       intervenantId="" // Vous devrez peut-être récupérer l'ID de l'intervenant connecté ici
     >
@@ -39,7 +47,7 @@ const Dashboard: React.FC = () => {
           <p className="text-lg text-600 mb-4">
             Gestion centralisée de votre établissement scolaire
           </p>
-          
+
           {/* Carte d'information de l'école */}
           {ecole && (
             <div className="bg-white shadow-2 p-4 border-round-lg max-w-30rem mx-auto">
@@ -49,7 +57,7 @@ const Dashboard: React.FC = () => {
                   {ecole.nom_ecole}
                 </h2>
               </div>
-              
+
               <div className="grid text-left">
                 <div className="col-6">
                   <p className="flex align-items-center mb-2">

@@ -1,35 +1,124 @@
 import axios from 'axios';
-import { getIntervenantConnecte } from './intervenantService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://facts-yet-kijiji-meeting.trycloudflare.com';
+// Configuration de l'URL de base de l'API
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = API_BASE_URL.endsWith('/') 
+  ? API_BASE_URL.slice(0, -1) 
+  : API_BASE_URL;
 
 export interface Notification {
   id_notification: string;
-  type: string;
-  message: string;
+  type_notification: string;
+  messages: string;
   date_creation: string;
-  lue: boolean;
-  lien?: string;
+  lu: boolean;
+  utilisateur_id: string;
+  utilisateur_type: string;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+    from: number;
+    to: number;
+  };
 }
 
 /**
- * Récupère les notifications non lues de l'intervenant connecté
+ * Récupère les notifications avec pagination et filtres
  */
-export const fetchNotifications = async (): Promise<Notification[]> => {
-  const intervenant = getIntervenantConnecte();
-  if (!intervenant?.id_intervenant) {
-    throw new Error('Intervenant non connecté');
-  }
-
+export const fetchNotifications = async (params: {
+  page?: number;
+  per_page?: number;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  unread_only?: boolean;
+  user_id: string;  
+  user_type: string; 
+}): Promise<PaginatedResponse<Notification>> => {
   try {
-    const response = await axios.get<{ success: boolean; data: Notification[] }>(
-      `${API_URL}/api/intervenants/${intervenant.id_intervenant}/notifications`,
-      { withCredentials: true }
-    );
-    return response.data.data || [];
+    // Paramètres de requête
+    const queryParams = new URLSearchParams();
+    
+    // Ajouter les paramètres de base
+    if (params.user_id) queryParams.append('user_id', params.user_id);
+    if (params.user_type) queryParams.append('user_type', params.user_type);
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params.sort_by) queryParams.append('sort_by', params.sort_by);
+    if (params.sort_order) queryParams.append('sort_order', params.sort_order);
+    if (params.unread_only !== undefined) queryParams.append('unread_only', params.unread_only.toString());
+
+    // Construire l'URL avec les paramètres de requête
+    const url = `${API_URL}/api/notifications`;
+    console.log('Tentative de récupération des notifications depuis:', url);
+    
+    const response = await axios.get(url, {
+      params: {
+        user_id: params.user_id,
+        user_type: params.user_type,
+        sort_by: params.sort_by || 'date_creation',
+        sort_order: params.sort_order || 'desc',
+        per_page: params.per_page || 10,
+        page: params.page || 1,
+        unread_only: params.unread_only || false
+      },
+      withCredentials: true,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Vérifier si la réponse contient directement les données
+    if (Array.isArray(response.data)) {
+      return {
+        data: response.data,
+        pagination: {
+          total: response.data.length,
+          per_page: params.per_page || 10,
+          current_page: params.page || 1,
+          last_page: 1,
+          from: 1,
+          to: response.data.length
+        }
+      };
+    }
+
+    // Si la réponse suit le format avec data et pagination
+    if (response.data && Array.isArray(response.data.data)) {
+      return {
+        data: response.data.data,
+        pagination: response.data.pagination || {
+          total: response.data.data.length,
+          per_page: params.per_page || 10,
+          current_page: params.page || 1,
+          last_page: 1,
+          from: 1,
+          to: response.data.data.length
+        }
+      };
+    }
+
+    throw new Error('Format de réponse inattendu de l\'API');
   } catch (error) {
     console.error('Erreur lors de la récupération des notifications :', error);
-    throw error;
+    // Retourner un objet vide en cas d'erreur
+    return {
+      data: [],
+      pagination: {
+        total: 0,
+        per_page: 10,
+        current_page: 1,
+        last_page: 1,
+        from: 0,
+        to: 0
+      }
+    };
   }
 };
 
@@ -41,9 +130,15 @@ export const marquerCommeLue = async (notificationId: string): Promise<boolean> 
     const response = await axios.post<{ success: boolean }>(
       `${API_URL}/api/notifications/${notificationId}/marquer-lue`,
       {},
-      { withCredentials: true }
+      { 
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
     );
-    return response.data.success;
+    return response.data.success || false;
   } catch (error) {
     console.error('Erreur lors du marquage de la notification comme lue :', error);
     throw error;
@@ -51,19 +146,27 @@ export const marquerCommeLue = async (notificationId: string): Promise<boolean> 
 };
 
 /**
- * Marque toutes les notifications comme lues
+ * Marque toutes les notifications comme lues pour un utilisateur
  */
-export const marquerToutesCommeLues = async (): Promise<number> => {
+export const marquerToutesCommeLues = async (userId: string, userType: string): Promise<number> => {
   try {
-    const response = await axios.post<{ success: boolean; message: string }>(
+    const response = await axios.post<{ count: number }>(
       `${API_URL}/api/notifications/tout-marquer-lu`,
-      {},
-      { withCredentials: true }
+      {
+        user_id: userId,
+        user_type: userType
+      },
+      { 
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
     );
     
-    // Extraire le nombre de notifications marquées comme lues depuis le message
-    const match = response.data.message.match(/(\d+)/);
-    return match ? parseInt(match[0], 10) : 0;
+    // Retourner le nombre de notifications mises à jour
+    return response.data?.count || 0;
   } catch (error) {
     console.error('Erreur lors du marquage de toutes les notifications comme lues :', error);
     throw error;

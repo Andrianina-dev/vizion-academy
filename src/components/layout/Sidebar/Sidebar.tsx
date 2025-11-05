@@ -13,10 +13,16 @@ const Sidebar: React.FC<SidebarProps> = ({ visible, onHide, onSelect, activeSect
   const menuItems = [
     { label: 'Accueil', icon: 'pi pi-home', section: 'accueil' },
     { label: 'Missions', icon: 'pi pi-briefcase', section: 'missions' },
-    { label: 'Mes Intervenants', icon: 'pi pi-star', section: 'intervenants' }, // AJOUT ICI
+    { label: 'Mes Intervenants', icon: 'pi pi-star', section: 'intervenants' },
     { label: 'Factures', icon: 'pi pi-file', section: 'factures' },
     { label: 'Utilisateurs', icon: 'pi pi-users', section: 'utilisateurs' },
     { label: 'Paramètres', icon: 'pi pi-cog', section: 'parametres' },
+    { 
+      label: 'Support', 
+      icon: 'pi pi-question-circle', 
+      section: 'support',
+      className: 'mt-auto' // Pour le pousser en bas
+    },
   ];
 
   return (

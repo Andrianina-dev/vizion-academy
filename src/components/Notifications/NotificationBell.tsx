@@ -6,7 +6,7 @@ import { Bell } from 'lucide-react';
 import './NotificationBell.css';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
-import axios from 'axios';
+import { fetchNotifications, marquerCommeLue, marquerToutesCommeLues } from '../../services/notificationService';
 
 interface Notification {
   id_notification: string;
@@ -68,19 +68,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
     e?.stopPropagation();
     
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/notifications/${notificationId}/marquer-lue`,
-        {
-          intervenant_id: intervenantId,
-          type_utilisateur: 'intervenant'
-        },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      await marquerCommeLue(notificationId);
       
       // Mettre à jour l'état local
       setNotifications(prev => 
@@ -88,7 +76,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
           n.id_notification === notificationId ? { ...n, lu: true } : n
         )
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Mettre à jour le compteur de notifications non lues
+      const newUnreadCount = Math.max(0, unreadCount - 1);
+      setUnreadCount(newUnreadCount);
+      
+      // Notifier le composant parent du changement
+      if (onUnreadCountChange) {
+        onUnreadCountChange(newUnreadCount);
+      }
     } catch (error) {
       console.error('Erreur lors du marquage de la notification comme lue:', error);
       toast.current?.show({
@@ -98,7 +94,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         life: 3000
       });
     }
-  }, [intervenantId]);
+  }, [intervenantId, unreadCount, onUnreadCountChange]);
 
   // Marquer toutes les notifications comme lues
   const markAllAsRead = useCallback(async (e: React.MouseEvent) => {
@@ -107,25 +103,20 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
     if (unreadCount === 0) return;
     
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/notifications/tout-marquer-lu`,
-        {
-          intervenant_id: intervenantId,
-          type_utilisateur: 'intervenant'
-        },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      await marquerToutesCommeLues(intervenantId, 'intervenant');
       
       // Mettre à jour l'état local
       setNotifications(prev => 
         prev.map(n => ({ ...n, lu: true }))
       );
+      
+      // Mettre à jour le compteur de notifications non lues
       setUnreadCount(0);
+      
+      // Notifier le composant parent du changement
+      if (onUnreadCountChange) {
+        onUnreadCountChange(0);
+      }
     } catch (error) {
       console.error('Erreur lors du marquage de toutes les notifications comme lues:', error);
       toast.current?.show({
@@ -135,81 +126,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         life: 3000
       });
     }
-  }, [intervenantId, unreadCount]);
+  }, [intervenantId, unreadCount, onUnreadCountChange]);
 
-  // Récupérer les notifications
-  const fetchNotifications = useCallback(async () => {
-    if (!intervenantId) {
-      console.error('ID intervenant non fourni');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const apiUrl = `${import.meta.env.VITE_API_URL}/api/notifications/intervenant/${intervenantId}`;
-      console.log('Tentative de récupération des notifications depuis:', apiUrl);
-      
-      const response = await axios.get(
-        apiUrl,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      console.log('Réponse de l\'API:', response);
-      
-      if (response.data && response.data.success) {
-        const notificationsData = response.data.data || [];
-        console.log('Données brutes des notifications:', notificationsData);
-        
-        if (!Array.isArray(notificationsData)) {
-          console.error('Les données reçues ne sont pas un tableau:', notificationsData);
-          return;
-        }
-        
-        // Formater les dates et s'assurer que les types sont corrects
-        const formattedNotifications = notificationsData.map((n: any) => {
-          console.log('Traitement de la notification:', n);
-          return {
-            id_notification: String(n.id_notification || ''),
-            type_notification: String(n.type_notification || ''),
-            messages: String(n.messages || ''),
-            lu: Boolean(n.lu),
-            date_creation: n.date_creation ? new Date(n.date_creation).toISOString() : new Date().toISOString()
-          };
-        });
-        
-        console.log('Notifications formatées:', formattedNotifications);
-        setNotifications(formattedNotifications);
-        const unread = formattedNotifications.filter((n: Notification) => !n.lu).length;
-        console.log('Nombre de notifications non lues:', unread);
-        setUnreadCount(unread);
-      } else {
-        console.error('Erreur dans la réponse de l\'API:', response.data);
-        throw new Error(response.data.message || 'Erreur lors de la récupération des notifications');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération des notifications:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: error instanceof Error ? error.message : 'Impossible de charger les notifications',
-        life: 3000
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [intervenantId]);
-
-  // Charger les notifications au montage du composant et quand l'ID de l'intervenant change
+  // Charger les notifications au montage et quand l'ID de l'intervenant change
   useEffect(() => {
     if (intervenantId) {
-      fetchNotifications();
+      loadNotifications();
+      // Rafraîchir les notifications toutes les 5 minutes
+      const interval = setInterval(loadNotifications, 5 * 60 * 1000);
+      return () => clearInterval(interval);
     }
-  }, [intervenantId, fetchNotifications]);
+  }, [intervenantId, onUnreadCountChange]);
 
   // Mettre à jour le compteur de notifications non lues
   useEffect(() => {
@@ -220,6 +147,42 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
       onUnreadCountChange(unread);
     }
   }, [notifications, onUnreadCountChange]);
+
+  // Fonction pour charger les notifications
+  const loadNotifications = useCallback(async () => {
+    if (!intervenantId) return;
+    
+    setLoading(true);
+    try {
+      console.log('Chargement des notifications pour l\'intervenant:', intervenantId);
+      const response = await fetchNotifications({
+        user_id: intervenantId,
+        user_type: 'intervenant',
+        sort_by: 'date_creation',
+        sort_order: 'desc',
+        unread_only: false
+      });
+      
+      console.log('Réponse des notifications:', response);
+      
+      if (response && response.data) {
+        setNotifications(response.data);
+        const unread = response.data.filter(n => !n.lu).length;
+        setUnreadCount(unread);
+        onUnreadCountChange?.(unread);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des notifications:', error);
+      toast.current?.show({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Impossible de charger les notifications',
+        life: 3000
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [intervenantId, onUnreadCountChange]);
 
   return (
     <div className="notification-bell relative">
@@ -233,7 +196,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         severity="secondary"
         onClick={(e) => {
           op.current?.toggle(e);
-          fetchNotifications(); // Rafraîchir les notifications à chaque ouverture
+          loadNotifications(); // Rafraîchir les notifications à chaque ouverture
         }}
         className="p-overlay-badge relative hover:bg-gray-100"
         aria-label="Notifications"
@@ -258,7 +221,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         dismissable
         onHide={() => {
           // Rafraîchir les notifications lors de la fermeture
-          fetchNotifications();
+          fetchNotifications({
+            user_id: intervenantId,
+            user_type: 'intervenant',
+            sort_by: 'date_creation',
+            sort_order: 'desc'
+          });
         }}
       >
         <div className="sticky top-0 bg-white z-10 pt-2 px-3 pb-1 border-b border-gray-100">
