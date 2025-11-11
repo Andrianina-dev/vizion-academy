@@ -27,14 +27,14 @@ const Login: React.FC = () => {
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginFormData> = {};
-    
+
     // Validation email
     if (!formData.email) {
       newErrors.email = "L'email est requis";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "L'email n'est pas valide";
     }
-    
+
     // Validation mot de passe
     if (!formData.mot_de_passe) {
       newErrors.mot_de_passe = 'Le mot de passe est requis';
@@ -85,7 +85,7 @@ const Login: React.FC = () => {
     <AuthLayout title="Connexion" subtitle="Accédez à votre compte école">
       <div onKeyPress={handleKeyPress} className="space-y-3">
         {loginError && <Message severity="error" text={loginError} className="w-full mb-3" />}
-        
+
         <CustomInput
           label="Email de l'école" // ← Changé le label
           value={formData.email}
@@ -95,7 +95,7 @@ const Login: React.FC = () => {
           error={errors.email}
           icon="pi pi-envelope" // ← Icône email
         />
-        
+
         <CustomInput
           label="Mot de passe"
           value={formData.mot_de_passe}
@@ -105,7 +105,7 @@ const Login: React.FC = () => {
           error={errors.mot_de_passe}
           icon="pi pi-lock"
         />
-        
+
         <CustomButton
           label="Se connecter"
           onClick={handleLogin}

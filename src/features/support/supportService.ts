@@ -2,78 +2,115 @@ import type { CreateSupportTicketDto, SupportTicket } from './types';
 import { API_URL } from '../../config/constants';
 import axios from 'axios';
 
-const API_BASE_URL = `${API_URL}/api/support`;
+const API_BASE_URL = `${API_URL}/api`;
 
-// Configuration d'axios pour inclure les credentials
-axios.defaults.withCredentials = true;
+// Configuration simple d'axios
+const axiosInstance = axios.create({
+  withCredentials: true,
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  }
+});
 
+// Fonction utilitaire pour récupérer l'ID de l'école connectée
+export const getEcoleConnecteeId = (): string => {
+  const ecoleData = localStorage.getItem('ecole_connectee');
+  if (!ecoleData) {
+    throw new Error('Aucune école connectée');
+  }
+  const ecole = JSON.parse(ecoleData);
+  if (!ecole?.id_ecole) {
+    console.error('Données de l\'école invalides:', ecole);
+    throw new Error('Données de l\'école invalides');
+  }
+  return ecole.id_ecole;
+};
+
+/**
+ * Crée un nouveau ticket de support
+ */
 /**
  * Crée un nouveau ticket de support
  */
 export const createSupportTicket = async (data: CreateSupportTicketDto): Promise<SupportTicket> => {
   try {
-    const response = await axios.post<SupportTicket>(
-      `${API_BASE_URL}/tickets`, 
+    // Récupérer l'ID de l'école connectée
+    const ecoleId = getEcoleConnecteeId();
+    
+    const response = await axiosInstance.post(
+      `${API_BASE_URL}/support/tickets`,
       {
+        ecole_id: ecoleId,
         sujet: data.subject,
-        messages: data.message,
-        statut: 'ouvert' // Le statut par défaut
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+        message: data.message
       }
     );
-    return response.data;
-  } catch (error) {
-    console.error('Erreur lors de la création du ticket de support:', error);
+
+    if (response.data?.success) {
+      return response.data.data;
+    }
+
+    throw new Error(response.data?.message || 'Échec de la création du ticket de support');
+  } catch (error: any) {
+    console.error('Erreur lors de la création du ticket de support:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     throw error;
   }
 };
 
-/**
- * Récupère la liste des tickets de l'utilisateur connecté
- */
 /**
  * Récupère la liste des tickets de l'utilisateur connecté
  */
 export const getUserTickets = async (): Promise<SupportTicket[]> => {
   try {
-    const response = await axios.get<SupportTicket[]>(`${API_BASE_URL}/tickets`, {
-      withCredentials: true,
+    // Récupérer l'ID de l'école connectée
+    const ecoleId = getEcoleConnecteeId();
+    
+    const response = await axiosInstance.get(
+      `${API_BASE_URL}/support/ecole/mes-tickets/${ecoleId}`
+    );
+
+    if (response.data?.success) {
+      return response.data.data || [];
+    }
+
+    throw new Error(response.data?.message || 'Échec de la récupération des tickets');
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération des tickets:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
     });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user tickets:', error);
     throw error;
   }
 };
 
-/**
- * Récupère les détails d'un ticket spécifique
- */
 /**
  * Récupère un ticket par son ID
  */
 export const getTicketById = async (ticketId: string): Promise<SupportTicket> => {
   try {
-    const response = await axios.get<SupportTicket>(`${API_BASE_URL}/tickets/${ticketId}`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    const response = await axiosInstance.get<SupportTicket>(`${API_BASE_URL}/support/tickets/${ticketId}`);
+
+    if (!response.data) {
+      throw new Error('Échec de la récupération du ticket');
+    }
+
     return response.data;
-  } catch (error) {
-    console.error(`Erreur lors de la récupération du ticket ${ticketId}:`, error);
+  } catch (error: any) {
+    console.error(`Erreur lors de la récupération du ticket ${ticketId}:`, {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     throw error;
   }
 };
 
-/**
- * Met à jour un ticket existant
- */
 /**
  * Met à jour un ticket existant
  */
@@ -82,20 +119,9 @@ export const updateTicket = async (
   updates: Partial<SupportTicket>
 ): Promise<SupportTicket> => {
   try {
-    const response = await axios.put<SupportTicket>(
-      `${API_BASE_URL}/tickets/${ticketId}`,
-      {
-        // Mapper les champs si nécessaire
-        reponse: updates.reponse,
-        statut: updates.statut,
-        messages: updates.messages
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      }
+    const response = await axiosInstance.put<SupportTicket>(
+      `${API_BASE_URL}/support/tickets/${ticketId}`,
+      updates
     );
     return response.data;
   } catch (error) {
@@ -107,19 +133,16 @@ export const updateTicket = async (
 /**
  * Ajoute une réponse à un ticket
  */
-/**
- * Ajoute une réponse à un ticket
- */
 export const addTicketResponse = async (
   ticketId: string,
   message: string
 ): Promise<SupportTicket> => {
   try {
-    // On utilise updateTicket pour ajouter une réponse
-    return await updateTicket(ticketId, {
-      reponse: message,
-      statut: 'en_cours' // Mise à jour du statut
-    });
+    const response = await axiosInstance.post<SupportTicket>(
+      `${API_BASE_URL}/support/tickets/${ticketId}/response`,
+      { message }
+    );
+    return response.data;
   } catch (error) {
     console.error(`Erreur lors de l'ajout d'une réponse au ticket ${ticketId}:`, error);
     throw error;

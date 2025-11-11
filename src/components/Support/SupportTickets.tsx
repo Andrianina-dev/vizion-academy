@@ -69,7 +69,6 @@ const actionBodyTemplate = (rowData: SupportTicket) => {
 const SupportTickets: React.FC = () => {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -77,9 +76,8 @@ const SupportTickets: React.FC = () => {
         setLoading(true);
         const data = await getUserTickets();
         setTickets(data);
-      } catch (err) {
-        console.error('Error fetching support tickets:', err);
-        setError('Impossible de charger les tickets de support');
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
       } finally {
         setLoading(false);
       }
@@ -87,26 +85,6 @@ const SupportTickets: React.FC = () => {
 
     fetchTickets();
   }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-content-center p-4">
-        <i className="pi pi-spin pi-spinner text-2xl"></i>
-        <span className="ml-2">Chargement des tickets...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4">
-        <div className="p-message p-message-error">
-          <i className="pi pi-exclamation-triangle"></i>
-          <span className="ml-2">{error}</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <Card title="Mes demandes de support" className="mt-4">
