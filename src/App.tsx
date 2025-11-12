@@ -10,7 +10,7 @@ import LoginIntervenant from './pages/Login/LoginIntervenant';
 import LoginPage from './features/admin/pages/LoginPage';
 import AdminDashboard from './features/admin/pages/DashboardPage';
 import AdminRegisterPage from './features/admin/pages/AdminRegisterPage';
-import { AuthProvider, useAuth } from './features/admin/auth/AuthContext';
+import { AuthProvider, useAuth } from './features/admin/context/AuthContext';
 import "primereact/resources/themes/lara-light-cyan/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
