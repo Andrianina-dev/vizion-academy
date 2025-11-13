@@ -231,7 +231,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
 
     const handleMenuClick = (key: string) => {
         setSelectedKey(key);
-        navigate(`/admin/${key}`);
+        
+        // Gestion de la navigation
+        switch(key) {
+            case 'finances/paiements':
+                navigate('/admin/paiements');
+                break;
+            case 'dashboard':
+                navigate('/admin/dashboard');
+                break;
+            // Ajoutez d'autres cas de navigation ici si nécessaire
+            default:
+                console.log(`Navigation vers: ${key}`);
+        }
     };
 
     const getActivityIcon = (type: Activity['type']) => {

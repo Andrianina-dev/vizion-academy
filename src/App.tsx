@@ -10,6 +10,7 @@ import LoginIntervenant from './pages/Login/LoginIntervenant';
 import LoginPage from './features/admin/pages/LoginPage';
 import AdminDashboard from './features/admin/pages/DashboardPage';
 import AdminRegisterPage from './features/admin/pages/AdminRegisterPage';
+import PaiementsPage from './features/admin/pages/PaiementsPage';
 import { AuthProvider, useAuth } from './features/admin/context/AuthContext';
 import "primereact/resources/themes/lara-light-cyan/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -78,6 +79,12 @@ function App() {
             <Route path="/admin/dashboard" element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/paiements" element={
+              <ProtectedRoute>
+                <PaiementsPage />
               </ProtectedRoute>
             } />
             

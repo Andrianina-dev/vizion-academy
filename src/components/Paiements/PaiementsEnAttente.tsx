@@ -120,6 +120,54 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
         fetchPaiements();
     }, [intervenantId]);
 
+    const handleDemandePaiement = async (paiement: Paiement) => {
+        try {
+            setLoading(true);
+            const apiUrl = import.meta.env.VITE_API_URL;
+            
+            const response = await fetch(
+                `${apiUrl}/api/factures/${paiement.id_facture}/demande-paiement`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Erreur lors de la demande de paiement');
+            }
+
+            // Mettre à jour l'état local
+            setPaiements(paiements.map(p => 
+                p.id_facture === paiement.id_facture 
+                    ? { ...p, statut: 'en attente' as const } 
+                    : p
+            ));
+
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Demande envoyée',
+                detail: 'Votre demande de paiement a été envoyée pour validation',
+                life: 5000
+            });
+
+        } catch (error) {
+            console.error('Erreur:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: 'Une erreur est survenue lors de la demande de paiement',
+                life: 5000
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleDownload = (virementId: string) => {
         // Implémentez la logique de téléchargement ici
         console.log(`Téléchargement du virement ${virementId}`);
@@ -374,10 +422,14 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                                     disabled={!paiement.virement}
                                                 />
                                                 <Button
-                                                    icon="pi pi-eye"
-                                                    label="Détails"
-                                                    className="p-button-secondary p-button-sm"
-                                                    onClick={() => console.log('Voir détails:', paiement.virement)}
+                                                    icon="pi pi-euro"
+                                                    label={
+                                                        paiement.statut === 'en attente' 
+                                                            ? 'Payez' 
+                                                            : 'Demander le paiement'
+                                                    }
+                                                    className="p-button-success p-button-sm"
+                                                    onClick={() => handleDemandePaiement(paiement)}
                                                 />
                                             </div>
                                         </div>
