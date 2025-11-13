@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { ProgressSpinner } from 'primereact/progressspinner';
-import { adminService, type PaiementEnAttente } from '../adminService';
+import adminService from '../adminService';
+import type { PaiementEnAttente } from '../adminService';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -19,15 +20,24 @@ const PaiementsEnAttente: React.FC = () => {
             setLoading(true);
             setError(null);
             const data = await adminService.getPaiementsEnAttente();
-            setPaiements(data);
+            setPaiements(data || []); // S'assurer que data est toujours un tableau
+            
+            if (data.length === 0) {
+                console.log('Aucun paiement en attente trouvé');
+            }
         } catch (error: any) {
             console.error('Erreur lors du chargement des paiements:', error);
             
             // Ne pas afficher d'erreur si c'est une erreur 401 (non autorisé)
-            if (!error?.response || error.response.status !== 401) {
-                const errorMessage = error.response?.data?.message || 'Impossible de charger les paiements. Veuillez réessayer plus tard.';
-                setError(errorMessage);
+            if (error?.response?.status === 401) {
+                console.log('Non autorisé, redirection vers la page de connexion...');
+                // L'intercepteur s'occupera de la redirection
+                return;
             }
+            
+            // Pour les autres erreurs, on affiche un message à l'utilisateur
+            const errorMessage = error.response?.data?.message || 'Impossible de charger les paiements. Veuillez réessayer plus tard.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -185,21 +195,42 @@ const PaiementsEnAttente: React.FC = () => {
             <h2 className="text-xl font-bold mb-4">Paiements en attente</h2>
             
             {loading && (
-                <div className="flex justify-center items-center h-64">
+                <div className="flex flex-column justify-content-center align-items-center" style={{ height: '50vh' }}>
                     <ProgressSpinner />
+                    <p className="mt-3">Chargement des paiements en attente...</p>
                 </div>
             )}
             
             {error && (
-                <div className="card p-3">
-                    <div className="p-3 border-round border-1 border-300 bg-red-50">
-                        <div className="text-red-600 font-medium mb-2">Erreur</div>
-                        <div className="text-600">{error}</div>
+                <div className="p-4">
+                    <div className="p-4 border-round border-1 border-red-500 bg-red-100 text-red-700">
+                        <i className="pi pi-exclamation-triangle mr-2"></i>
+                        {error}
                     </div>
+                    <Button 
+                        label="Réessayer" 
+                        icon="pi pi-refresh" 
+                        className="mt-3" 
+                        onClick={fetchPaiements}
+                    />
                 </div>
             )}
             
-            {!loading && !error && (
+            {!loading && !error && paiements.length === 0 && (
+                <div className="p-4 text-center">
+                    <i className="pi pi-check-circle text-6xl text-green-500 mb-3"></i>
+                    <h3 className="text-2xl font-medium mb-2">Aucun paiement en attente</h3>
+                    <p className="text-gray-600 mb-4">Tous les paiements ont été traités.</p>
+                    <Button 
+                        label="Actualiser" 
+                        icon="pi pi-refresh" 
+                        className="p-button-outlined" 
+                        onClick={fetchPaiements}
+                    />
+                </div>
+            )}
+            
+            {!loading && !error && paiements.length > 0 && (
                 <div className="card">
                     <DataTable 
                         value={paiements} 

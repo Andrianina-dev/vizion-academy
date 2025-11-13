@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextField, Container, Box, Typography, Paper, Alert, Link } from '@mui/material';
-import { adminService } from '../adminService';
+import adminService from '../adminService';
 
 const AdminRegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({

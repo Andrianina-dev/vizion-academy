@@ -25,8 +25,9 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('Tentative de connexion avec les identifiants:', email);
       await login(email, password);
-      navigate('/admin/dashboard');
+      // La redirection est gérée par le AuthContext après une connexion réussie
     } catch (err) {
       setError('Échec de la connexion. Veuillez vérifier vos identifiants.');
       console.error('Login error:', err);

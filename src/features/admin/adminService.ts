@@ -1,101 +1,17 @@
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 
-
 // Configuration de base d'Axios pour les requêtes API
-const adminApi: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?
-    `${import.meta.env.VITE_API_URL}/api` :
-    'http://localhost:8000/api',
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
+console.log('URL de l\'API:', import.meta.env.VITE_API_URL);
+
+// Déclaration des interfaces
+declare module 'axios' {
+  interface InternalAxiosRequestConfig<D = any> {
+    _retry?: boolean;
   }
-});
+}
 
-// Configuration pour permettre l'envoi des cookies cross-origin
-axios.defaults.withCredentials = true;
-
-// Intercepteur pour ajouter les en-têtes communs aux requêtes
-adminApi.interceptors.request.use(
-  (config) => {
-    // On ne met plus de token Bearer ici, on utilise les cookies de session
-    config.headers['Accept'] = 'application/json';
-    config.headers['Content-Type'] = 'application/json';
-    config.headers['X-Requested-With'] = 'XMLHttpRequest';
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Intercepteur pour gérer les erreurs d'authentification
-adminApi.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  async (error: AxiosError) => {
-    // Vérifier si la requête originale existe
-    if (!error.config) {
-      return Promise.reject(error);
-    }
-
-    const originalRequest = error.config;
-    const currentPath = window.location.pathname;
-
-    // Si l'erreur est 401
-    if (error.response?.status === 401) {
-      // Ne pas rediriger pour les requêtes de vérification de session, login ou rafraîchissement
-      if (originalRequest.url?.includes('/admin/me') ||
-        originalRequest.url?.includes('/admin/login') ||
-        originalRequest.url?.includes('refresh') ||
-        // Ne pas rediriger pour la racine ou les routes non-admin
-        !currentPath.startsWith('/admin/')) {
-        return Promise.reject(error);
-      }
-
-      // Vérifier si nous sommes déjà sur la page de connexion ou en train de rediriger
-      if (currentPath === '/admin/login' ||
-        sessionStorage.getItem('redirecting') === 'true') {
-        return Promise.reject(error);
-      }
-
-      try {
-        // Marquer que nous sommes en train de rediriger
-        sessionStorage.setItem('redirecting', 'true');
-
-        // Supprimer l'indicateur d'authentification
-        localStorage.removeItem('is_authenticated');
-
-        // Stocker l'URL actuelle pour rediriger après la connexion
-        if (currentPath !== '/admin/login') {
-          sessionStorage.setItem('redirectAfterLogin', currentPath);
-        }
-
-        // Rediriger vers la page de connexion
-        window.location.href = '/admin/login';
-      } catch (e) {
-        console.error('Erreur lors de la redirection:', e);
-      }
-
-      return Promise.reject(error);
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Intercepteur pour réinitialiser l'état de redirection après une requête réussie
-adminApi.interceptors.request.use(config => {
-  // Réinitialiser l'état de redirection pour les nouvelles requêtes
-  if (sessionStorage.getItem('redirecting') === 'true') {
-    sessionStorage.removeItem('redirecting');
-  }
-  return config;
-});
-
-export interface AdminCredentials {
+interface AdminCredentials {
   email: string;
   password: string;
 }
@@ -108,7 +24,7 @@ export interface AdminUser {
   avatar?: string;
 }
 
-export interface RegisterAdminData {
+interface RegisterAdminData {
   nom_admin: string;
   email: string;
   password: string;
@@ -135,35 +51,166 @@ export interface PaiementEnAttente {
   };
 }
 
-export interface IAdminService {
-  readonly admin: AdminUser | null;
-  readonly isAuthenticated: boolean;
-  readonly message: string;
-  registerAdmin(adminData: RegisterAdminData): Promise<{ message: string }>;
-  login(credentials: { email: string; password: string }): Promise<{ admin: AdminUser }>;
-  getCurrentUser(): Promise<AdminUser | null>;
-  logout(): Promise<void>;
-  // Gestion des paiements
-  getPaiementsEnAttente(): Promise<PaiementEnAttente[]>;
-  validerPaiement(idFacture: string): Promise<{ success: boolean; message: string }>;
-  rejeterPaiement(idFacture: string): Promise<{ success: boolean; message: string }>;
-  // Ajout des getters manquants
-  getAdmin(): AdminUser | null;
-  getIsAuthenticated(): boolean;
-  getMessage(): string;
-}
-
-class AdminService implements IAdminService {
+class AdminService {
   private api: AxiosInstance;
   private _admin: AdminUser | null = null;
   private _isAuthenticated = false;
   private _message: string = '';
 
   constructor() {
-    this.api = adminApi;
+    // Configuration de l'instance Axios
+    this.api = axios.create({
+      baseURL: import.meta.env.VITE_API_URL ? 
+        `${import.meta.env.VITE_API_URL}/api` : 
+        'http://localhost:8000/api',
+      withCredentials: true,
+      // Ne pas définir les en-têtes par défaut ici, ils seront gérés par l'intercepteur
+      headers: {},
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      withXSRFToken: true,
+      // Désactiver la transformation automatique des réponses
+      transformResponse: (data) => data,
+      // Ne pas lancer d'erreur pour les statuts HTTP >= 400
+      validateStatus: (status) => status < 500
+    });
+
+    // Configuration des intercepteurs
+    this.setupInterceptors();
   }
 
-  // Implémentation des getters de l'interface IAdminService
+  private setupInterceptors() {
+    // Intercepteur de requête
+    this.api.interceptors.request.use(
+      (config) => {
+        // Créer un nouvel objet headers pour éviter les modifications directes
+        const headers: Record<string, any> = {
+          ...config.headers,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        };
+        
+        // Ajouter le token CSRF si disponible
+        if (!config.url?.includes('/login')) {
+          const token = this.getCookie('XSRF-TOKEN');
+          if (token) {
+            headers['X-XSRF-TOKEN'] = token;
+          }
+        }
+        
+        // Supprimer les en-têtes problématiques pour CORS
+        delete headers['Cache-Control'];
+        delete headers['Pragma'];
+        
+        console.log('Envoi de la requête vers:', config.url, {
+          method: config.method,
+          withCredentials: config.withCredentials,
+          headers: headers
+        });
+        
+        return config;
+      },
+      (error) => {
+        console.error('Erreur dans l\'intercepteur de requête:', error);
+        return Promise.reject(error);
+      }
+    );
+    
+    // Intercepteur de réponse
+    this.api.interceptors.response.use(
+      (response) => {
+        // Mettre à jour le token CSRF si présent dans la réponse
+        const newToken = response.headers['x-xsrf-token'];
+        if (newToken) {
+          document.cookie = `XSRF-TOKEN=${newToken}; path=/; samesite=strict` + (window.location.protocol === 'https:' ? '; secure' : '');
+        }
+        return response;
+      },
+      (error) => {
+        if (error.response) {
+          console.error('Erreur de réponse:', {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            headers: error.response.headers
+          });
+          
+          // Si l'erreur est 401 (non autorisé), déconnecter l'utilisateur
+          if (error.response.status === 401) {
+            this._isAuthenticated = false;
+            this._admin = null;
+          }
+        } else if (error.request) {
+          console.error('Aucune réponse reçue:', error.request);
+        } else {
+          console.error('Erreur lors de la configuration de la requête:', error.message);
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Intercepteur de réponse principal
+    this.api.interceptors.response.use(
+      (response: AxiosResponse) => {
+        // Ne pas logger les réponses de requêtes de vérification de session
+        if (!response.config.url?.includes('/admin/me')) {
+          console.log('Réponse reçue:', {
+            url: response.config.url,
+            status: response.status,
+            data: response.data
+          });
+        }
+        return response;
+      },
+      async (error: AxiosError) => {
+        const originalRequest = error.config as any;
+        
+        console.error('Erreur de réponse:', {
+          url: originalRequest?.url,
+          method: originalRequest?.method,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
+
+        // Gestion des erreurs 401 (Non autorisé)
+        if (error.response?.status === 401) {
+          const currentPath = window.location.pathname;
+          
+          // Ne pas rediriger pour les requêtes de connexion ou de vérification de session
+          if (originalRequest?.url?.includes('/admin/login') || 
+              originalRequest?.url?.includes('/admin/me')) {
+            return Promise.reject(error);
+          }
+          
+          // Si on est déjà sur la page de connexion, on ne fait rien
+          if (currentPath === '/admin/login') {
+            return Promise.reject(error);
+          }
+          
+          // Éviter les boucles de redirection
+          if (!originalRequest?._retry) {
+            console.log('Session expirée ou non authentifié, déconnexion...');
+            originalRequest._retry = true;
+            
+            // Réinitialiser l'état d'authentification
+            this.resetAuthState();
+            
+            // Rediriger vers la page de connexion
+            if (!currentPath.includes('/login')) {
+              sessionStorage.setItem('redirectAfterLogin', currentPath);
+              window.location.href = '/admin/login';
+            }
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // Getters
   get admin(): AdminUser | null {
     return this._admin;
   }
@@ -176,245 +223,268 @@ class AdminService implements IAdminService {
     return this._message;
   }
 
-  // Méthodes supplémentaires requises par l'interface
-  getAdmin(): AdminUser | null {
-    return this._admin;
-  }
-
-  getIsAuthenticated(): boolean {
-    return this._isAuthenticated;
-  }
-
-  getMessage(): string {
-    return this._message;
-  }
-
-  // Méthodes de gestion des paiements
-  async getPaiementsEnAttente(): Promise<PaiementEnAttente[]> {
-    try {
-      const response = await this.api.get('/admin/paiements/en-attente');
-      return response.data.data;
-    } catch (error) {
-      console.error('Erreur lors de la récupération des paiements en attente:', error);
-      throw error;
-    }
-  }
-
-  async validerPaiement(idFacture: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.put(`/admin/paiements/${idFacture}/valider`);
-      return {
-        success: true,
-        message: response.data.message || 'Paiement validé avec succès'
-      };
-    } catch (error: unknown) {
-      console.error('Erreur lors de la validation du paiement:', error);
-
-      if (axios.isAxiosError(error)) {
-        const message = (error.response?.data as { message?: string })?.message ||
-          error.message ||
-          'Erreur lors de la validation du paiement';
-        return {
-          success: false,
-          message
-        };
-      }
-
-      const errorMessage = error instanceof Error
-        ? error.message
-        : 'Erreur lors de la validation du paiement';
-
-      return {
-        success: false,
-        message: errorMessage
-      };
-    }
-  }
-
-  async rejeterPaiement(idFacture: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await this.api.put(`/admin/paiements/${idFacture}/rejeter`);
-      return {
-        success: true,
-        message: response.data.message || 'Paiement rejeté avec succès'
-      };
-    } catch (error: unknown) {
-      console.error('Erreur lors du rejet du paiement:', error);
-      const axiosError = error as AxiosError<{ message?: string }>;
-      return {
-        success: false,
-        message: axiosError.response?.data?.message || 'Erreur lors du rejet du paiement'
-      };
-    }
-  }
-
-  async registerAdmin(adminData: RegisterAdminData): Promise<{ message: string }> {
-    try {
-      console.log('Envoi des données d\'inscription:', {
-        nom_admin: adminData.nom_admin,
-        email: adminData.email,
-        password: '[PROTECTED]',
-        password_confirmation: '[PROTECTED]'
-      });
-
-      const response = await this.api.post('/admin/register', {
-        nom_admin: adminData.nom_admin,
-        email: adminData.email,
-        password: adminData.password,
-        password_confirmation: adminData.password_confirmation
-      });
-
-      console.log('Réponse du serveur:', response.data);
-
-      if (response.data.success) {
-        return { message: response.data.message };
-      } else {
-        throw new Error(response.data.message || 'Erreur lors de l\'inscription');
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error);
-
-      if (axios.isAxiosError(error) && error.response) {
-        // Gestion des erreurs de validation 422
-        if (error.response.status === 422 && error.response.data.errors) {
-          const errors = Object.values(error.response.data.errors).flat().join('\n');
-          throw new Error(errors);
-        }
-        // Autres erreurs
-        const errorMessage = error.response.data?.message || 'Erreur lors de l\'inscription';
-        throw new Error(errorMessage);
-      }
-
-      throw error instanceof Error ? error : new Error('Erreur de connexion au serveur');
-    }
-  }
-
+  // Méthodes d'authentification
   async login(credentials: AdminCredentials): Promise<{ admin: AdminUser }> {
     try {
       console.log('Tentative de connexion avec les identifiants:', credentials.email);
-
-      // Définition de l'interface pour la réponse de l'API
-      interface LoginResponse {
-        success: boolean;
-        admin: AdminUser;
-        message: string;
-        authenticated: boolean;
-      }
-
-      const response = await this.api.post<LoginResponse>('/admin/login', {
+      
+      // Nettoyer l'état précédent
+      this._isAuthenticated = false;
+      this._admin = null;
+      
+      const response = await this.api.post('/admin/login', {
         email: credentials.email,
-        password: credentials.password
+        password: credentials.password,
       }, {
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
-        }
+        },
+        withCredentials: true
       });
 
-      console.log('Réponse du serveur:', response.data);
+      console.log('Réponse complète de connexion:', response);
 
-      if (!response.data.success || !response.data.authenticated) {
-        console.error('Échec de l\'authentification:', response.data.message);
-        throw new Error(response.data.message || 'Échec de la connexion');
-      }
-
-      if (!response.data.admin) {
-        console.error('Aucune donnée admin reçue dans la réponse');
-        throw new Error('Erreur d\'authentification: aucune donnée utilisateur reçue');
-      }
-
-      console.log('Connexion réussie');
-
-      this._admin = response.data.admin;
-      this._isAuthenticated = true;
-
-      return {
-        admin: response.data.admin
-      };
-    } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          // Gestion des erreurs de validation ou d'authentification
-          if (error.response.status === 401 || error.response.status === 422) {
-            const errorMessage = error.response.data?.message || 'Email ou mot de passe incorrect';
-            throw new Error(errorMessage);
-          }
-          // Autres erreurs
-          const errorMessage = error.response.data?.message || 'Erreur lors de la connexion';
-          throw new Error(errorMessage);
-        }
-      }
-      throw error;
-    }
-  }
-
-  async getCurrentUser(): Promise<AdminUser | null> {
-    try {
-      // Interface pour la réponse attendue
-      interface CurrentUserResponse {
-        success: boolean;
-        message?: string;
-        admin: AdminUser;
-        authenticated: boolean;
-      }
-
-      // Utilisation de la méthode PUT comme requis par l'API
-      const response = await this.api.put<CurrentUserResponse>('/admin/me', {}, {
-        // Ne pas déclencher l'intercepteur pour cette requête
-        validateStatus: (status) => status < 500
-      });
-
-      // Si la requête a échoué avec une erreur 401, retourner null sans déclencher de redirection
-      if (response.status === 401) {
-        this._isAuthenticated = false;
-        this._admin = null;
-        return null;
-      }
-
-      // Vérifier si la réponse est valide
       if (!response.data) {
         throw new Error('Réponse du serveur invalide');
       }
 
-      const { success, authenticated, admin } = response.data;
+      // Parse the response data if it's a string
+      const responseData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
-      // Vérifier la réponse
-      if (!success || !authenticated || !admin) {
-        this._isAuthenticated = false;
-        this._admin = null;
-        return null;
+      // Vérifier si la réponse contient un objet admin valide
+      if (responseData && responseData.success && responseData.authenticated && responseData.admin) {
+        const adminData = responseData.admin;
+        
+        console.log('Connexion réussie, utilisateur:', { 
+          id: adminData.id, 
+          email: adminData.email, 
+          role: adminData.role 
+        });
+
+        // Mettre à jour l'état de l'authentification
+        this._admin = adminData;
+        this._isAuthenticated = true;
+        this._message = responseData.message || 'Connexion réussie';
+        
+        // Stocker les informations de session
+        localStorage.setItem('adminToken', 'authenticated');
+        localStorage.setItem('adminData', JSON.stringify(adminData));
+
+        return { admin: adminData };
       }
 
-      // Mettre à jour l'état d'authentification
-      this._admin = admin;
-      this._isAuthenticated = true;
-      return admin;
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisateur:', error instanceof Error ? error.message : 'Erreur inconnue');
+      // Si on arrive ici, le format de la réponse est inattendu
+      console.error('Format de réponse inattendu ou données manquantes:', response.data);
+      throw new Error('Format de réponse du serveur inattendu');
+
+    } catch (error: any) {
+      console.error('Erreur lors de la connexion:', error);
+      this._isAuthenticated = false;
+      this._admin = null;
+
+      if (axios.isAxiosError(error)) {
+        console.error('Détails de l\'erreur Axios:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+
+        if (error.response) {
+          const errorMessage = error.response.data?.message || 
+            error.response.data?.error ||
+            (error.response.status === 401 ? 'Email ou mot de passe incorrect' : 
+             `Erreur lors de la connexion (${error.response.status})`);
+          this._message = errorMessage;
+          throw new Error(errorMessage);
+        } else if (error.request) {
+          throw new Error('Impossible de se connecter au serveur. Vérifiez votre connexion.');
+        }
+      }
+      
+      throw error instanceof Error ? error : new Error('Une erreur inattendue est survenue');
+    }
+  }
+
+  private getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  }
+
+  async getCurrentUser(forceRefresh = false): Promise<AdminUser | null> {
+    console.log('getCurrentUser appelé, chemin actuel:', window.location.pathname, { forceRefresh });
+    
+    if (typeof window === 'undefined') {
+      console.log('Côté serveur, pas de vérification de session');
+      return null;
+    }
+
+    // Si on a déjà un admin en mémoire et qu'on ne force pas le rafraîchissement
+    if (this._admin && !forceRefresh) {
+      console.log('Utilisation de l\'utilisateur en mémoire');
+      return this._admin;
+    }
+
+    // Vérifier d'abord si on a des données en cache (sauf si on force le rafraîchissement)
+    if (!forceRefresh) {
+      const cachedAdmin = localStorage.getItem('adminData');
+      if (cachedAdmin) {
+        try {
+          const adminData = JSON.parse(cachedAdmin);
+          this._admin = adminData;
+          this._isAuthenticated = true;
+          console.log('Utilisation des données utilisateur en cache');
+          return adminData;
+        } catch (e) {
+          console.error('Erreur lors du parsing des données en cache', e);
+          localStorage.removeItem('adminData');
+        }
+      }
+    }
+
+
+    try {
+      console.log('Vérification de l\'authentification...');
+      
+      // Préparer la requête avec le minimum d'en-têtes nécessaires
+      const config = {
+        withCredentials: true,
+        // Ne pas lancer d'erreur pour les réponses 401
+        validateStatus: (status: number) => status < 500
+      };
+      
+      console.log('Envoi de la requête GET vers /admin/me');
+      
+      const response = await this.api.get('/admin/me', config);
+
+      console.log('Réponse de l\'API /admin/me:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+
+      if (response.status === 200 && response.data) {
+        // Gérer à la fois les réponses avec et sans propriété 'authenticated'
+        const responseData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+        
+        if ((responseData.authenticated || responseData.admin) && responseData.admin) {
+          this._isAuthenticated = true;
+          this._admin = responseData.admin;
+          
+          // Mettre à jour le cache local
+          localStorage.setItem('adminData', JSON.stringify(this._admin));
+          
+          console.log('Utilisateur authentifié avec succès');
+          return this._admin;
+        }
+      }
+
+      // Si la session a expiré ou est invalide
+      if (response.status === 401) {
+        console.log('Session expirée ou invalide');
+        localStorage.removeItem('adminToken');
+      }
+
+      console.log('Aucun utilisateur authentifié ou données manquantes dans la réponse');
       this._isAuthenticated = false;
       this._admin = null;
       return null;
+    } catch (error: any) {
+      console.error('Erreur lors de la vérification de l\'utilisateur:', error);
+      
+      // En cas d'erreur réseau, on ne déconnecte pas l'utilisateur
+      if (error.code === 'ERR_NETWORK') {
+        console.log('Erreur réseau, maintien de la session');
+        return this._admin; // Retourne l'utilisateur en cache si disponible
+      }
+      
+      this._isAuthenticated = false;
+      this._admin = null;
+      localStorage.removeItem('adminToken');
+      return null;
     }
+  }
+
+  resetAuthState() {
+    this._isAuthenticated = false;
+    this._admin = null;
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
   }
 
   async logout(): Promise<void> {
     try {
       await this.api.post('/admin/logout');
     } catch (error) {
-      // Même en cas d'erreur, on considère que l'utilisateur est déconnecté
       console.error('Erreur lors de la déconnexion:', error);
     } finally {
-      this._admin = null;
-      this._isAuthenticated = false;
+      this.resetAuthState();
+      document.cookie = 'laravel_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'XSRF-TOKEN=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+  }
+
+  // Autres méthodes du service
+  async registerAdmin(adminData: RegisterAdminData): Promise<{ message: string }> {
+    try {
+      const response = await this.api.post('/admin/register', adminData);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de l\'enregistrement de l\'administrateur:', error);
+      throw error;
+    }
+  }
+
+  async getPaiementsEnAttente(): Promise<PaiementEnAttente[]> {
+    try {
+      console.log('Récupération des paiements en attente...');
+      const response = await this.api.get('/admin/paiements/en-attente');
+      
+      // Si la réponse est un tableau, on le retourne, sinon on retourne un tableau vide
+      const data = Array.isArray(response.data) ? response.data : [];
+      console.log(`${data.length} paiements en attente récupérés`);
+      
+      return data;
+    } catch (error: any) {
+      console.error('Erreur lors de la récupération des paiements en attente:', error);
+      
+      // Si c'est une erreur 401 (non autorisé), on la laisse remonter pour être gérée par l'intercepteur
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        console.log('Erreur d\'authentification, déconnexion...');
+        throw error;
+      }
+      
+      // Pour les autres erreurs, on retourne un tableau vide
+      console.log('Aucun paiement en attente ou erreur de récupération');
+      return [];
+    }
+  }
+
+  async validerPaiement(idFacture: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(`/admin/paiements/${idFacture}/valider`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la validation du paiement:', error);
+      throw error;
+    }
+  }
+
+  async rejeterPaiement(idFacture: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.post(`/admin/paiements/${idFacture}/rejeter`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors du rejet du paiement:', error);
+      throw error;
     }
   }
 }
 
-// Créer l'instance du service
+// Créer et exporter une seule instance du service
 const adminService = new AdminService();
-
-// Exporter l'instance du service
-export { adminService };
 export default adminService;
