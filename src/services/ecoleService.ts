@@ -2,6 +2,8 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
+const IS_DEV = import.meta.env.DEV;
+const API_BASE = IS_DEV ? '' : (API_URL?.endsWith('/') ? API_URL.slice(0, -1) : API_URL);
 
 interface LoginData {
   email: string; // ← Changé de id_ecole à email
@@ -25,7 +27,12 @@ interface LoginResponse {
 
 export const loginEcole = async (data: LoginData): Promise<LoginResponse> => {
   try {
-    const response = await axios.post(`${API_URL}/api/ecole/login`, data, { // ← Changé l'URL
+    // Initialiser le cookie CSRF (Sanctum) si nécessaire
+    try {
+      await axios.get(`${API_BASE}/sanctum/csrf-cookie`, { withCredentials: true });
+    } catch { }
+
+    const response = await axios.post(`${API_BASE}/api/ecole/login`, data, { // ← Utiliser base relative en dev
       headers: { 'Content-Type': 'application/json' },
       withCredentials: true,
     });
@@ -33,6 +40,10 @@ export const loginEcole = async (data: LoginData): Promise<LoginResponse> => {
     // Stocker l'école connectée localement
     if (response.data.success && response.data.ecole) {
       localStorage.setItem('ecole_connectee', JSON.stringify(response.data.ecole));
+      // Stocker aussi l'ID en session pour accès rapide durant la session
+      try {
+        sessionStorage.setItem('ecole_id', response.data.ecole.id_ecole);
+      } catch { }
     }
 
     return response.data;
@@ -52,4 +63,13 @@ export const getEcoleConnectee = (): Ecole | null => {
 export const getIdEcoleConnectee = (): string | null => {
   const ecole = getEcoleConnectee();
   return ecole ? ecole.id_ecole : null;
+};
+
+// Helper pour récupérer l'ID depuis la session si disponible
+export const getIdEcoleSession = (): string | null => {
+  try {
+    return sessionStorage.getItem('ecole_id');
+  } catch {
+    return null;
+  }
 };

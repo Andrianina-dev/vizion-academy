@@ -99,10 +99,66 @@ const FactureList: React.FC = () => {
                     header="Actions"
                     body={(row) => (
                         <div className="flex gap-2">
-                            <Button label="Aperçu" icon="pi pi-eye" onClick={() => openSidebar(row)} />
-                            <Button label="PDF" icon="pi pi-file-pdf" severity="danger" onClick={() => downloadPDF(row.id_facture)} />
+                            <Button
+                                icon="pi pi-eye"
+                                className="p-button-sm p-button-info"
+                                onClick={() => openSidebar(row)}
+                                tooltip="Aperçu"
+                                tooltipOptions={{ position: 'top' }}
+                            />
+                            <Button
+                                icon="pi pi-file-pdf"
+                                className="p-button-sm p-button-danger"
+                                onClick={() => downloadPDF(row.id_facture)}
+                                tooltip="Télécharger PDF"
+                                tooltipOptions={{ position: 'top' }}
+                            />
+                            {row.statut === 'à payer' && (
+                                <Button
+                                    icon="pi pi-money-bill"
+                                    className="p-button-sm p-button-success"
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                            // Mettre à jour le statut dans la base de données
+                                            console.log('Mise à jour du statut de la facture', row.id_facture);
+                                            const response = await fetch(`${API_URL}/api/factures/${row.id_facture}/statut`, {
+                                                method: 'PATCH',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'Accept': 'application/json',
+                                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                                                },
+                                                credentials: 'include',
+                                                body: JSON.stringify({ statut: 'en attente' })
+                                            });
+
+                                            console.log('Réponse du serveur:', response.status, await response.text().catch(e => e));
+
+                                            if (!response.ok) {
+                                                throw new Error('Erreur lors de la mise à jour du statut');
+                                            }
+
+                                            // Mettre à jour l'interface utilisateur après confirmation du serveur
+                                            const updatedFactures = factures.map(f =>
+                                                f.id_facture === row.id_facture
+                                                    ? { ...f, statut: 'en attente' }
+                                                    : f
+                                            );
+                                            setFactures(updatedFactures);
+
+                                        } catch (error) {
+                                            console.error('Erreur lors de la mise à jour du statut:', error);
+                                            alert('Erreur lors de la mise à jour du statut. Veuillez réessayer.');
+                                        }
+                                    }}
+                                    tooltip={`Payer la facture pour ${row.nom_ecole}`}
+                                    tooltipOptions={{ position: 'top' }}
+                                />
+                            )}
                         </div>
                     )}
+                    style={{ width: '180px' }}
                 />
             </DataTable>
 

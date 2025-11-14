@@ -2,9 +2,27 @@ import axios from 'axios';
 
 // Configuration de l'URL de base de l'API
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_URL = API_BASE_URL.endsWith('/') 
-  ? API_BASE_URL.slice(0, -1) 
+const API_URL = API_BASE_URL.endsWith('/')
+  ? API_BASE_URL.slice(0, -1)
   : API_BASE_URL;
+const IS_DEV = import.meta.env.DEV;
+// En dev, utiliser des chemins relatifs pour bénéficier du proxy Vite et éviter CORS
+const API_BASE = IS_DEV ? '' : API_URL;
+
+// Bootstrap CSRF cookie (Laravel Sanctum) once per session
+let csrfInitialized = false;
+const ensureCsrfCookie = async () => {
+  if (csrfInitialized) return;
+  try {
+    await axios.get(`${API_BASE}/sanctum/csrf-cookie`, {
+      withCredentials: true,
+    });
+    csrfInitialized = true;
+  } catch (e) {
+    // Ne pas bloquer, laisser la requête principale échouer si nécessaire
+    // Utile pour les backends non-Sanctum
+  }
+};
 
 export interface Notification {
   id_notification: string;
@@ -37,13 +55,14 @@ export const fetchNotifications = async (params: {
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   unread_only?: boolean;
-  user_id: string;  
-  user_type: string; 
+  user_id: string;
+  user_type: string;
 }): Promise<PaginatedResponse<Notification>> => {
   try {
+    await ensureCsrfCookie();
     // Paramètres de requête
     const queryParams = new URLSearchParams();
-    
+
     // Ajouter les paramètres de base
     if (params.user_id) queryParams.append('user_id', params.user_id);
     if (params.user_type) queryParams.append('user_type', params.user_type);
@@ -54,9 +73,9 @@ export const fetchNotifications = async (params: {
     if (params.unread_only !== undefined) queryParams.append('unread_only', params.unread_only.toString());
 
     // Construire l'URL avec les paramètres de requête
-    const url = `${API_URL}/api/notifications`;
+    const url = `${API_BASE}/api/notifications`;
     console.log('Tentative de récupération des notifications depuis:', url);
-    
+
     const response = await axios.get(url, {
       params: {
         user_id: params.user_id,
@@ -105,9 +124,13 @@ export const fetchNotifications = async (params: {
     }
 
     throw new Error('Format de réponse inattendu de l\'API');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la récupération des notifications :', error);
-    // Retourner un objet vide en cas d'erreur
+    // Si l'erreur est un 403 (non autorisé), relancer pour que l'UI affiche une notification
+    if (error?.response?.status === 403) {
+      throw error;
+    }
+    // Retourner un objet vide pour les autres cas d'erreur
     return {
       data: [],
       pagination: {
@@ -127,10 +150,11 @@ export const fetchNotifications = async (params: {
  */
 export const marquerCommeLue = async (notificationId: string): Promise<boolean> => {
   try {
+    await ensureCsrfCookie();
     const response = await axios.post<{ success: boolean }>(
-      `${API_URL}/api/notifications/${notificationId}/marquer-lue`,
+      `${API_BASE}/api/notifications/${notificationId}/marquer-lue`,
       {},
-      { 
+      {
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
@@ -150,13 +174,14 @@ export const marquerCommeLue = async (notificationId: string): Promise<boolean> 
  */
 export const marquerToutesCommeLues = async (userId: string, userType: string): Promise<number> => {
   try {
+    await ensureCsrfCookie();
     const response = await axios.post<{ count: number }>(
-      `${API_URL}/api/notifications/tout-marquer-lu`,
+      `${API_BASE}/api/notifications/tout-marquer-lu`,
       {
         user_id: userId,
         user_type: userType
       },
-      { 
+      {
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
@@ -164,7 +189,7 @@ export const marquerToutesCommeLues = async (userId: string, userType: string): 
         }
       }
     );
-    
+
     // Retourner le nombre de notifications mises à jour
     return response.data?.count || 0;
   } catch (error) {

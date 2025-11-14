@@ -37,7 +37,8 @@ const Dashboard: React.FC = () => {
         }
       }}
       activeSection={activeSection}
-      intervenantId="" // Vous devrez peut-être récupérer l'ID de l'intervenant connecté ici
+      userId={ecole?.id_ecole || ''}
+      userType="ecole"
     >
       {activeSection === 'accueil' && (
         <div className="text-center">

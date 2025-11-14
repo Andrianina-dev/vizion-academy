@@ -109,7 +109,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
                 {
                     label: 'Paiements',
                     icon: <FaMoneyBillWave className="mr-2" />,
-                    command: () => handleMenuClick('finances/paiements')
+                    command: () => window.location.href = '/admin/paiements'
                 }
             ]
         },
@@ -231,9 +231,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
 
     const handleMenuClick = (key: string) => {
         setSelectedKey(key);
-        
+
         // Gestion de la navigation
-        switch(key) {
+        switch (key) {
             case 'finances/paiements':
                 navigate('/admin/paiements');
                 break;

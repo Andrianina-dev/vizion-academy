@@ -7,6 +7,7 @@ import './NotificationBell.css';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { fetchNotifications, marquerCommeLue, marquerToutesCommeLues } from '../../services/notificationService';
+import { getIdEcoleConnectee, getIdEcoleSession } from '../../services/ecoleService';
 
 interface Notification {
   id_notification: string;
@@ -17,23 +18,28 @@ interface Notification {
 }
 
 interface NotificationBellProps {
-  intervenantId: string;
+  userId: string;
+  userType: 'intervenant' | 'ecole' | 'admin';
   onUnreadCountChange?: (count: number) => void;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantId, onUnreadCountChange }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, userType, onUnreadCountChange }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const op = useRef<OverlayPanelType | null>(null);
   const toast = useRef<Toast>(null);
 
+  // Déterminer l'identité effective de l'utilisateur (fallback pour école connectée)
+  const effectiveUserType = userType;
+  const effectiveUserId = userId || (userType === 'ecole' ? (getIdEcoleSession() || getIdEcoleConnectee() || '') : userId);
+
   // Formater la date
   const formatDate = useCallback((dateString: string) => {
     try {
-      const options: Intl.DateTimeFormatOptions = { 
-        year: 'numeric', 
-        month: 'short', 
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
@@ -66,21 +72,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
   // Marquer une notification comme lue
   const markAsRead = useCallback(async (notificationId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    
+
     try {
       await marquerCommeLue(notificationId);
-      
+
       // Mettre à jour l'état local
-      setNotifications(prev => 
-        prev.map(n => 
+      setNotifications(prev =>
+        prev.map(n =>
           n.id_notification === notificationId ? { ...n, lu: true } : n
         )
       );
-      
+
       // Mettre à jour le compteur de notifications non lues
       const newUnreadCount = Math.max(0, unreadCount - 1);
       setUnreadCount(newUnreadCount);
-      
+
       // Notifier le composant parent du changement
       if (onUnreadCountChange) {
         onUnreadCountChange(newUnreadCount);
@@ -94,25 +100,26 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         life: 3000
       });
     }
-  }, [intervenantId, unreadCount, onUnreadCountChange]);
+  }, [userId, unreadCount, onUnreadCountChange]);
 
   // Marquer toutes les notifications comme lues
   const markAllAsRead = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (unreadCount === 0) return;
-    
+
     try {
-      await marquerToutesCommeLues(intervenantId, 'intervenant');
-      
+      if (!effectiveUserId) return;
+      await marquerToutesCommeLues(effectiveUserId, effectiveUserType);
+
       // Mettre à jour l'état local
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => ({ ...n, lu: true }))
       );
-      
+
       // Mettre à jour le compteur de notifications non lues
       setUnreadCount(0);
-      
+
       // Notifier le composant parent du changement
       if (onUnreadCountChange) {
         onUnreadCountChange(0);
@@ -126,17 +133,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         life: 3000
       });
     }
-  }, [intervenantId, unreadCount, onUnreadCountChange]);
+  }, [effectiveUserId, effectiveUserType, unreadCount, onUnreadCountChange]);
 
   // Charger les notifications au montage et quand l'ID de l'intervenant change
   useEffect(() => {
-    if (intervenantId) {
+    if (effectiveUserId) {
       loadNotifications();
       // Rafraîchir les notifications toutes les 5 minutes
       const interval = setInterval(loadNotifications, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
-  }, [intervenantId, onUnreadCountChange]);
+  }, [effectiveUserId, onUnreadCountChange]);
 
   // Mettre à jour le compteur de notifications non lues
   useEffect(() => {
@@ -150,49 +157,60 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
 
   // Fonction pour charger les notifications
   const loadNotifications = useCallback(async () => {
-    if (!intervenantId) return;
-    
+    if (!effectiveUserId) return;
+
     setLoading(true);
     try {
-      console.log('Chargement des notifications pour l\'intervenant:', intervenantId);
+      console.log('Chargement des notifications pour', effectiveUserType, effectiveUserId);
       const response = await fetchNotifications({
-        user_id: intervenantId,
-        user_type: 'intervenant',
+        user_id: effectiveUserId,
+        user_type: effectiveUserType,
         sort_by: 'date_creation',
         sort_order: 'desc',
         unread_only: false
       });
-      
+
       console.log('Réponse des notifications:', response);
-      
+
       if (response && response.data) {
         setNotifications(response.data);
         const unread = response.data.filter(n => !n.lu).length;
         setUnreadCount(unread);
         onUnreadCountChange?.(unread);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors du chargement des notifications:', error);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: 'Impossible de charger les notifications',
-        life: 3000
-      });
+      if (error?.response?.status === 403) {
+        toast.current?.show({
+          severity: 'warn',
+          summary: 'Accès refusé',
+          detail: (error?.response?.data?.message
+            || (typeof error?.response?.data === 'string' ? error.response.data : undefined)
+            || "Vous n'êtes pas autorisé à voir les notifications. Veuillez vous connecter ou vérifier vos droits."),
+          life: 4000
+        });
+      } else {
+        toast.current?.show({
+          severity: 'error',
+          summary: 'Erreur',
+          detail: error?.response?.data?.message || 'Impossible de charger les notifications',
+          life: 3000
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, [intervenantId, onUnreadCountChange]);
+  }, [effectiveUserId, effectiveUserType, onUnreadCountChange]);
 
   return (
     <div className="notification-bell relative">
       <Toast ref={toast} position="top-right" />
-      
-      <Button 
-        type="button" 
+
+      <Button
+        type="button"
         icon={<Bell size={20} className="text-gray-600" />}
-        rounded 
-        text 
+        rounded
+        text
         severity="secondary"
         onClick={(e) => {
           op.current?.toggle(e);
@@ -204,17 +222,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         tooltipOptions={{ position: 'bottom' }}
       >
         {unreadCount > 0 && (
-          <Badge 
-            value={unreadCount > 9 ? '9+' : unreadCount} 
-            severity="danger" 
+          <Badge
+            value={unreadCount > 9 ? '9+' : unreadCount}
+            severity="danger"
             className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center"
             style={{ fontSize: '0.65rem' }}
           />
         )}
       </Button>
-      
-      <OverlayPanel 
-        ref={op} 
+
+      <OverlayPanel
+        ref={op}
         className="w-80 max-h-96 overflow-y-auto shadow-lg border border-gray-200"
         showCloseIcon
         id="notification-panel"
@@ -222,20 +240,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
         onHide={() => {
           // Rafraîchir les notifications lors de la fermeture
           fetchNotifications({
-            user_id: intervenantId,
-            user_type: 'intervenant',
+            user_id: effectiveUserId,
+            user_type: effectiveUserType,
             sort_by: 'date_creation',
             sort_order: 'desc'
+          }).catch(() => {
+            // Ignorer les erreurs ici pour éviter les rejets non gérés (ex: 403)
           });
         }}
       >
         <div className="sticky top-0 bg-white z-10 pt-2 px-3 pb-1 border-b border-gray-100">
           <div className="flex justify-between items-center mb-2">
             <h5 className="font-bold text-lg m-0 text-gray-800">Notifications</h5>
-            <Button 
-              label="Tout marquer comme lu" 
-              size="small" 
-              text 
+            <Button
+              label="Tout marquer comme lu"
+              size="small"
+              text
               disabled={unreadCount === 0}
               onClick={markAllAsRead}
               className="p-button-text p-button-sm text-primary"
@@ -243,7 +263,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
             />
           </div>
         </div>
-        
+
         <div className="divide-y divide-gray-100">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-6">
@@ -257,15 +277,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
             </div>
           ) : (
             notifications.map((notification) => (
-              <div 
-                key={notification.id_notification} 
-                className={`p-4 hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${
-                  !notification.lu ? 'bg-blue-50' : ''
-                }`}
+              <div
+                key={notification.id_notification}
+                className={`p-4 hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${!notification.lu ? 'bg-blue-50' : ''
+                  }`}
                 onClick={(e) => !notification.lu && markAsRead(notification.id_notification, e)}
               >
                 <div className="flex items-start">
-                  <i 
+                  <i
                     className={`${getNotificationIcon(notification.type_notification)} mt-1 mr-3 text-xl`}
                     aria-hidden="true"
                   ></i>
@@ -278,7 +297,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
                     </p>
                   </div>
                   {!notification.lu && (
-                    <span 
+                    <span
                       className="w-2 h-2 rounded-full bg-blue-500 mt-2 ml-2 flex-shrink-0"
                       aria-label="Non lue"
                     ></span>
@@ -288,13 +307,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ intervenantI
             ))
           )}
         </div>
-        
+
         {notifications.length > 0 && (
           <div className="sticky bottom-0 bg-white border-t border-gray-100 px-3 py-2 text-center">
-            <Button 
-              label="Tout marquer comme lu" 
-              size="small" 
-              text 
+            <Button
+              label="Tout marquer comme lu"
+              size="small"
+              text
               disabled={unreadCount === 0}
               onClick={markAllAsRead}
               className="w-full justify-center"

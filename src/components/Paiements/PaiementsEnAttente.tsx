@@ -24,7 +24,7 @@ interface Paiement {
     virement: string;
     date_estimee: string;
     motif: string;
-    statut: 'en attente' | 'validé' | 'bloqué';
+    statut: 'à payer' | 'en attente' | 'validé' | 'bloqué';
     mission: Mission;
     motifBlocage?: string;
 }
@@ -39,7 +39,8 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
     className = ''
 }) => {
     const [paiements, setPaiements] = useState<Paiement[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [processingId, setProcessingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const toast = useRef<Toast>(null);
 
@@ -48,6 +49,59 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
         if (montant === undefined || montant === null) return '0.00';
         const num = typeof montant === 'string' ? parseFloat(montant) : montant;
         return isNaN(num) ? '0.00' : num.toFixed(2);
+    };
+
+    // Validation d'un paiement en attente (action admin côté UI intervenant si affichée)
+    const handleValiderPaiement = async (paiement: Paiement) => {
+        try {
+            if (!window.confirm('Confirmer la validation de ce paiement ?')) {
+                return;
+            }
+
+            setProcessingId(paiement.id_facture);
+            const apiUrl = import.meta.env.VITE_API_URL;
+
+            const response = await fetch(
+                `${apiUrl}/api/factures/${paiement.id_facture}/statut`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ statut: 'payee' })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Erreur lors de la validation du paiement');
+            }
+
+            // Retirer l'élément validé de la liste (il n'est plus "en attente")
+            setPaiements(prev => prev.filter(p => p.id_facture !== paiement.id_facture));
+
+            toast.current?.show({
+                severity: 'success',
+                summary: 'Paiement validé',
+                detail: `La facture ${paiement.id_facture} a été validée avec succès`,
+                life: 4000
+            });
+        } catch (error) {
+            console.error('Erreur:', error);
+            toast.current?.show({
+                severity: 'error',
+                summary: 'Erreur',
+                detail: error instanceof Error ? error.message : 'Une erreur est survenue lors de la validation',
+                life: 5000
+            });
+        } finally {
+            setProcessingId(null);
+        }
     };
 
     // Fonction pour obtenir la sévérité du statut
@@ -61,12 +115,13 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
     };
 
     // Fonction pour obtenir l'icône du statut
-    const getStatusIcon = (statut: string) => {
+    const getStatusIcon = (statut: 'à payer' | 'en attente' | 'validé' | 'bloqué') => {
         switch (statut) {
+            case 'à payer': return 'pi pi-euro';
+            case 'en attente': return 'pi pi-clock';
             case 'validé': return 'pi pi-check-circle';
             case 'bloqué': return 'pi pi-exclamation-triangle';
-            case 'en attente': return 'pi pi-clock';
-            default: return 'pi pi-info-circle';
+            default: return 'pi pi-question-circle';
         }
     };
 
@@ -75,7 +130,7 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
             setLoading(false);
             return;
         }
-        
+
         const fetchPaiements = async () => {
             try {
                 setLoading(true);
@@ -102,7 +157,7 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                 }
 
                 const data = await response.json();
-                
+
                 if (data?.success && Array.isArray(data.data)) {
                     setPaiements(data.data);
                 } else {
@@ -122,36 +177,59 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
 
     const handleDemandePaiement = async (paiement: Paiement) => {
         try {
-            setLoading(true);
+            // Mettre à jour l'état local pour afficher "Traitement en cours"
+            const updatedPaiements = paiements.map(p =>
+                p.id_facture === paiement.id_facture
+                    ? { ...p, statut: 'en attente' as const }
+                    : p
+            );
+            setPaiements(updatedPaiements);
+
+            setProcessingId(paiement.id_facture);
             const apiUrl = import.meta.env.VITE_API_URL;
-            
+
+            // Simuler un délai pour le traitement (2 secondes)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
             const response = await fetch(
                 `${apiUrl}/api/factures/${paiement.id_facture}/demande-paiement`,
                 {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: {
                         'Accept': 'application/json',
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                     },
-                    credentials: 'include'
+                    credentials: 'include',
+                    body: JSON.stringify({ status: 'en attente' })
                 }
             );
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error('Erreur lors de la demande de paiement');
+                // En cas d'erreur, on remet le statut initial
+                setPaiements(prevPaiements => prevPaiements.map(p =>
+                    p.id_facture === paiement.id_facture
+                        ? { ...p, statut: 'à payer' as const }
+                        : p
+                ));
+                throw new Error(data.message || 'Erreur lors de la demande de paiement');
             }
 
-            // Mettre à jour l'état local
-            setPaiements(paiements.map(p => 
-                p.id_facture === paiement.id_facture 
-                    ? { ...p, statut: 'en attente' as const } 
+            // Mettre à jour l'état avec la réponse du serveur
+            setPaiements(prevPaiements => prevPaiements.map(p =>
+                p.id_facture === paiement.id_facture
+                    ? { ...p, statut: 'en attente' as const }
                     : p
             ));
 
+            // Afficher un message de succès
             toast.current?.show({
                 severity: 'success',
                 summary: 'Demande envoyée',
-                detail: 'Votre demande de paiement a été envoyée pour validation',
+                detail: 'Votre demande de paiement a été soumise et est en attente de validation par l\'administrateur.',
                 life: 5000
             });
 
@@ -160,11 +238,11 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
             toast.current?.show({
                 severity: 'error',
                 summary: 'Erreur',
-                detail: 'Une erreur est survenue lors de la demande de paiement',
+                detail: error instanceof Error ? error.message : 'Une erreur est survenue lors de la demande de paiement',
                 life: 5000
             });
         } finally {
-            setLoading(false);
+            setProcessingId(null);
         }
     };
 
@@ -220,9 +298,9 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                             <span className="text-xl font-bold">Paiements en Attente</span>
                         </div>
                         {paiements.length > 0 && (
-                            <Badge 
-                                value={paiements.length} 
-                                className="ml-2 bg-yellow-500 text-white" 
+                            <Badge
+                                value={paiements.length}
+                                className="ml-2 bg-yellow-500 text-white"
                             />
                         )}
                     </div>
@@ -246,7 +324,7 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                             <div className="col-12 md:col-4 text-center">
                                 <div className="text-sm font-semibold text-blue-600 mb-1">Prochain paiement</div>
                                 <div className="text-lg font-bold text-blue-800">
-                                    {paiements.length > 0 
+                                    {paiements.length > 0
                                         ? new Date(paiements[0].date_estimee).toLocaleDateString('fr-FR')
                                         : '-'
                                     }
@@ -267,20 +345,21 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                         <div className="grid gap-4">
                             {paiements.map((paiement) => {
                                 const daysUntil = getDaysUntilPayment(paiement.date_estimee);
-                                
+
                                 return (
-                                    <div 
-                                        key={paiement.virement} 
+                                    <div
+                                        key={paiement.virement}
                                         className="p-5 bg-white border-round-lg border-1 border-gray-200 shadow-sm hover:shadow-md transition-all duration-200"
                                     >
                                         {/* En-tête avec statut et identifiants */}
                                         <div className="flex flex-column lg:flex-row justify-between items-start lg:items-center gap-3 mb-4">
                                             <div className="flex align-items-center gap-3">
-                                                <i className={`${getStatusIcon(paiement.statut)} text-xl`} 
-                                                   style={{ 
-                                                       color: paiement.statut === 'en attente' ? '#eab308' : 
-                                                              paiement.statut === 'validé' ? '#22c55e' : '#ef4444'
-                                                   }}></i>
+                                                <i className={`${getStatusIcon(paiement.statut)} text-xl`}
+                                                    style={{
+                                                        color: paiement.statut === 'en attente' ? '#eab308' :
+                                                            paiement.statut === 'validé' ? '#22c55e' :
+                                                                paiement.statut === 'à payer' ? '#3b82f6' : '#ef4444'
+                                                    }}></i>
                                                 <div>
                                                     <div className="font-bold text-gray-800 text-lg">
                                                         Virement #{paiement.virement}
@@ -290,7 +369,7 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                                     </div>
                                                 </div>
                                             </div>
-                                            <Tag 
+                                            <Tag
                                                 value={paiement.statut.charAt(0).toUpperCase() + paiement.statut.slice(1)}
                                                 severity={getStatusSeverity(paiement.statut)}
                                                 className="font-medium text-sm px-3 py-1"
@@ -319,14 +398,14 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                                 </div>
                                                 <div className="flex align-items-center gap-2">
                                                     <span className="font-bold text-gray-800">
-                                                        {new Date(paiement.date_estimee).toLocaleDateString('fr-FR', { 
-                                                            day: 'numeric', 
-                                                            month: 'long', 
-                                                            year: 'numeric' 
+                                                        {new Date(paiement.date_estimee).toLocaleDateString('fr-FR', {
+                                                            day: 'numeric',
+                                                            month: 'long',
+                                                            year: 'numeric'
                                                         })}
                                                     </span>
                                                     {daysUntil > 0 && (
-                                                        <Tag 
+                                                        <Tag
                                                             value={`Dans ${daysUntil} jour${daysUntil > 1 ? 's' : ''}`}
                                                             severity="info"
                                                             className="text-xs"
@@ -375,8 +454,8 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                                 <div className="col-12 sm:col-6 lg:col-3 flex align-items-center gap-2">
                                                     <i className="pi pi-calendar text-gray-400"></i>
                                                     <span className="text-sm text-gray-600">
-                                                        {paiement.mission.date ? 
-                                                            new Date(paiement.mission.date).toLocaleDateString('fr-FR') : 
+                                                        {paiement.mission.date ?
+                                                            new Date(paiement.mission.date).toLocaleDateString('fr-FR') :
                                                             'Non définie'}
                                                     </span>
                                                 </div>
@@ -407,29 +486,39 @@ const PaiementsEnAttente: React.FC<PaiementsEnAttenteProps> = ({
                                                 <span className="text-2xl font-bold text-gray-900">
                                                     {formatMontant(paiement.mission.total)} €
                                                 </span>
-                                                <Tag 
+                                                <Tag
                                                     value="NET"
-                                                    severity="success" 
+                                                    severity="success"
                                                     className="text-xs"
                                                 />
                                             </div>
                                             <div className="flex gap-2">
+                                                {paiement.statut === 'en attente' && (
+                                                    <Button
+                                                        label="Valider"
+                                                        icon="pi pi-check"
+                                                        className="p-button-success p-button-sm"
+                                                        loading={processingId === paiement.id_facture}
+                                                        onClick={() => handleValiderPaiement(paiement)}
+                                                        disabled={processingId !== null}
+                                                    />
+                                                )}
+                                                {paiement.statut === 'à payer' && (
+                                                    <Button
+                                                        label="Demander le paiement"
+                                                        icon="pi pi-send"
+                                                        className="p-button-primary p-button-sm"
+                                                        loading={processingId === paiement.id_facture}
+                                                        onClick={() => handleDemandePaiement(paiement)}
+                                                        disabled={processingId !== null}
+                                                    />
+                                                )}
                                                 <Button
                                                     icon="pi pi-download"
                                                     label="Télécharger la facture"
                                                     className="p-button-outlined p-button-sm"
                                                     onClick={() => paiement.virement && handleDownload(paiement.virement)}
-                                                    disabled={!paiement.virement}
-                                                />
-                                                <Button
-                                                    icon="pi pi-euro"
-                                                    label={
-                                                        paiement.statut === 'en attente' 
-                                                            ? 'Payez' 
-                                                            : 'Demander le paiement'
-                                                    }
-                                                    className="p-button-success p-button-sm"
-                                                    onClick={() => handleDemandePaiement(paiement)}
+                                                    disabled={!paiement.virement || processingId !== null}
                                                 />
                                             </div>
                                         </div>
