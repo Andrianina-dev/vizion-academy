@@ -40,8 +40,8 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
       command: () => onSectionChange('dashboard'),
       className: activeSection === 'dashboard' ? 'bg-gray-100' : '',
       template: (item, options) => (
-        <a className={`${options.className} ${activeSection === 'dashboard' ? 'bg-gray-100' : ''}`} 
-           onClick={() => onSectionChange('dashboard')}>
+        <a className={`${options.className} ${activeSection === 'dashboard' ? 'bg-gray-100' : ''}`}
+          onClick={() => onSectionChange('dashboard')}>
           {item.icon && <span className={options.iconClassName}></span>}
           <span className={options.labelClassName}>{item.label}</span>
         </a>
@@ -52,8 +52,8 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
       icon: 'pi pi-file-pdf',
       className: activeSection === 'factures' ? 'bg-gray-100' : '',
       template: (item, options) => (
-        <a className={`${options.className} ${activeSection === 'factures' ? 'bg-gray-100' : ''}`} 
-           onClick={() => onSectionChange('factures')}>
+        <a className={`${options.className} ${activeSection === 'factures' ? 'bg-gray-100' : ''}`}
+          onClick={() => onSectionChange('factures')}>
           {item.icon && <span className={options.iconClassName}></span>}
           <span className={options.labelClassName}>{item.label}</span>
           {facturesCount > 0 && <Badge value={facturesCount} className="ml-2" />}
@@ -86,8 +86,8 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
       icon: 'pi pi-euro',
       className: activeSection === 'paiements' ? 'bg-gray-100' : '',
       template: (item, options) => (
-        <a className={`${options.className} ${activeSection === 'paiements' ? 'bg-gray-100' : ''}`} 
-           onClick={() => onSectionChange('paiements')}>
+        <a className={`${options.className} ${activeSection === 'paiements' ? 'bg-gray-100' : ''}`}
+          onClick={() => onSectionChange('paiements')}>
           {item.icon && <span className={options.iconClassName}></span>}
           <span className={options.labelClassName}>{item.label}</span>
           {paiementsCount > 0 && <Badge value={paiementsCount} className="ml-2" />}
@@ -137,8 +137,8 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
           <h1 className="text-xl font-bold text-gray-800">Vizion Academy</h1>
         </div>
         <div className="p-4">
-          <Menu 
-            model={menuItems} 
+          <Menu
+            model={menuItems}
             className="border-none w-full"
             pt={{
               root: { className: 'border-none' },
@@ -158,14 +158,14 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
         <div className="lg:hidden p-4 bg-white shadow-sm border-b border-gray-200">
           <div className="flex justify-content-between align-items-center">
             <div className="flex align-items-center gap-3">
-              <Button 
-                icon="pi pi-bars" 
+              <Button
+                icon="pi pi-bars"
                 className="p-button-text p-0"
-                onClick={() => {}}
+                onClick={() => { }}
               />
               <span className="font-bold text-lg">Tableau de Bord</span>
             </div>
-            <Avatar 
+            <Avatar
               icon={userInfo.avatar ? undefined : 'pi pi-user'}
               image={userInfo.avatar}
               size="normal"
@@ -178,19 +178,19 @@ const DashboardIntervenantLayout: React.FC<DashboardIntervenantLayoutProps> = ({
 
         <div className="flex align-items-center justify-content-between w-full px-4 py-2 bg-white border-bottom-1 border-200">
           <div className="flex align-items-center">
-            <i className="pi pi-bars text-700 mr-3 text-xl cursor-pointer" onClick={() => {}} />
+            <i className="pi pi-bars text-700 mr-3 text-xl cursor-pointer" onClick={() => { }} />
             <span className="text-900 font-semibold text-lg">Tableau de bord</span>
           </div>
-          
+
           <div className="flex align-items-center">
-            <NotificationBell intervenantId={userInfo?.id || intervenantId || ''} />
+            <NotificationBell userId={userInfo?.id || intervenantId || ''} userType="intervenant" />
             <Menu model={menuItems} popup ref={null} id="popup_menu" />
-            <Avatar 
+            <Avatar
               icon={userInfo.avatar ? undefined : 'pi pi-user'}
               image={userInfo.avatar}
               className="ml-3 cursor-pointer"
               shape="circle"
-              onClick={() => {}}
+              onClick={() => { }}
               title={`${userInfo.name} - ${userInfo.role}`}
             />
           </div>

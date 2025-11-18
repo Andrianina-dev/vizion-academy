@@ -46,12 +46,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsAuthenticated(false);
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminData');
-      
+
       // Si l'utilisateur est sur une page protégée, on le redirige vers la page de connexion
       const currentPath = location.pathname;
-      if (currentPath.startsWith('/admin/') && 
-          !currentPath.includes('login') && 
-          !currentPath.includes('register')) {
+      if (currentPath.startsWith('/admin/') &&
+        !currentPath.includes('login') &&
+        !currentPath.includes('register')) {
         sessionStorage.setItem('redirectAfterLogin', currentPath);
         navigate('/admin/login', { replace: true });
       }
@@ -61,14 +61,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Vérification de la session au chargement
   useEffect(() => {
     let isMounted = true;
-    
+
     const checkAuth = async () => {
       const currentPath = location.pathname;
       console.log('Vérification de l\'authentification...', { path: currentPath });
-      
+
+      // Si on n'est pas dans l'espace admin, ne pas déclencher d'appels /admin
+      if (!currentPath.startsWith('/admin')) {
+        // Assurer un état neutre sans requêtes réseau
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        
+
         // Ne pas vérifier l'authentification si on est déjà sur la page de login ou register
         if (currentPath === '/admin/login' || currentPath === '/admin/register') {
           // Si l'utilisateur est déjà authentifié, rediriger vers le dashboard
@@ -97,14 +104,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setAdmin(adminData);
             setIsAuthenticated(true);
             console.log('Utilisation des données utilisateur en cache');
-            
+
             // Si on est sur la racine admin, rediriger vers le tableau de bord
             if (currentPath === '/admin' || currentPath === '/admin/') {
               const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/admin/dashboard';
               sessionStorage.removeItem('redirectAfterLogin');
               navigate(redirectPath, { replace: true });
             }
-            
+
             // Valider le token avec le serveur en arrière-plan
             validateTokenInBackground();
             return;
@@ -119,7 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!isMounted) return;
 
         console.log('Utilisateur actuel:', currentUser);
-        
+
         if (currentUser) {
           console.log('Utilisateur connecté détecté');
           setAdmin(currentUser);
@@ -135,7 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           console.log('Aucun utilisateur connecté');
           setIsAuthenticated(false);
-          
+
           // Rediriger vers la page de login si on est sur une page protégée
           if (currentPath.startsWith('/admin/')) {
             console.log('Redirection vers /admin/login');
@@ -146,11 +153,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Erreur lors de la vérification de l\'authentification:', error);
         if (!isMounted) return;
-        
+
         // En cas d'erreur, on considère que l'utilisateur n'est pas authentifié
         setIsAuthenticated(false);
         setAdmin(null);
-        
+
         const currentPath = location.pathname;
         if (currentPath.startsWith('/admin/') && !currentPath.includes('login') && !currentPath.includes('register')) {
           console.log('Erreur d\'authentification, redirection vers /admin/login');
@@ -166,7 +173,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     checkAuth();
-    
+
     return () => {
       isMounted = false;
     };
@@ -177,18 +184,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
       const { admin } = await adminService.login({ email, password });
-      
+
       // Stocker le token en local storage pour la persistance
       localStorage.setItem('adminToken', 'logged-in');
-      
+
       setAdmin(admin);
       setIsAuthenticated(true);
-      
+
       // Rediriger vers la page demandée ou le tableau de bord par défaut
       const redirectPath = sessionStorage.getItem('redirectAfterLogin') || '/admin/dashboard';
       sessionStorage.removeItem('redirectAfterLogin');
       navigate(redirectPath, { replace: true });
-      
+
       return admin;
     } catch (error: any) {
       // En cas d'erreur, supprimer le token
@@ -206,11 +213,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Supprimer le token de connexion
       localStorage.removeItem('adminToken');
-      
+
       // Réinitialiser l'état d'authentification
       setAdmin(null);
       setIsAuthenticated(false);
-      
+
       // Rediriger vers la page de connexion
       navigate('/admin/login', { replace: true });
     }

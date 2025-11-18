@@ -18,80 +18,83 @@ import "primeicons/primeicons.css";
 import "primeflex/primeflex.css";
 
 // Composant pour les routes protégées
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
+const AdminRoutes = () => {
+  // Protected and auth routes defined under Admin provider
+  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    const { isAuthenticated, loading } = useAuth();
+    if (loading) return <div>Chargement...</div>;
+    if (!isAuthenticated) return <Navigate to="/admin/login" replace />;
+    return children;
+  };
 
-  if (loading) {
-    return <div>Chargement...</div>; // Ou un composant de chargement
-  }
+  const AuthRoute = ({ children }: { children: React.ReactNode }) => {
+    const { isAuthenticated, loading } = useAuth();
+    if (loading) return <div>Chargement...</div>;
+    if (isAuthenticated) return <Navigate to="/admin/dashboard" replace />;
+    return children;
+  };
 
-  if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  return children;
-};
-
-// Composant pour les routes d'authentification (login/register)
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <div>Chargement...</div>; // Ou un composant de chargement
-  }
-
-  if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
-
-  return children;
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+        <Route
+          path="/admin/login"
+          element={
+            <AuthRoute>
+              <LoginPage />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/admin/register"
+          element={
+            <AuthRoute>
+              <AdminRegisterPage />
+            </AuthRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/paiements"
+          element={
+            <ProtectedRoute>
+              <PaiementsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </AuthProvider>
+  );
 };
 
 function App() {
   return (
     <PrimeReactProvider>
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Routes publiques */}
-            <Route path="/" element={<SiteVitrine />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/login-intervenant" element={<LoginIntervenant />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard-intervenant" element={<DashboardIntervenant />} />
-            <Route path="/support" element={<SupportPage />} />
-            
-            {/* Routes d'administration */}
-            <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-            
-            <Route path="/admin/login" element={
-              <AuthRoute>
-                <LoginPage />
-              </AuthRoute>
-            } />
-            
-            <Route path="/admin/register" element={
-              <AuthRoute>
-                <AdminRegisterPage />
-              </AuthRoute>
-            } />
-            
-            <Route path="/admin/dashboard" element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/admin/paiements" element={
-              <ProtectedRoute>
-                <PaiementsPage />
-              </ProtectedRoute>
-            } />
-            
-            {/* Redirection pour les routes inconnues */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
+        <Routes>
+          {/* Routes publiques */}
+          <Route path="/" element={<SiteVitrine />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/login-intervenant" element={<LoginIntervenant />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard-intervenant" element={<DashboardIntervenant />} />
+          <Route path="/support" element={<SupportPage />} />
+
+          {/* Routes d'administration, avec provider dédié */}
+          {/* On délègue à AdminRoutes pour éviter de monter le provider ailleurs */}
+          <Route path="/admin/*" element={<AdminRoutes />} />
+
+          {/* Redirection pour les routes inconnues */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </BrowserRouter>
     </PrimeReactProvider>
   );

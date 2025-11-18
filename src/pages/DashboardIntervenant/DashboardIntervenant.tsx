@@ -26,7 +26,7 @@ import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
 
-interface DashboardIntervenantProps {}
+interface DashboardIntervenantProps { }
 
 interface DashboardStats {
   facturesEnAttente: number;
@@ -41,7 +41,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   const [intervenant, setIntervenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  
+
   // Mettre à jour le compteur de notifications non lues dans les stats
   useEffect(() => {
     if (unreadCount >= 0) {
@@ -51,7 +51,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
       }));
     }
   }, [unreadCount]);
-  
+
   // Statistiques pour le tableau de bord
   const [stats, setStats] = useState<DashboardStats>({
     facturesEnAttente: 2,
@@ -68,10 +68,10 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
       try {
         const intervenantConnecte = getIntervenantConnecte();
         setIntervenant(intervenantConnecte);
-        
+
         // Simuler un chargement asynchrone
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Mettre à jour le compteur de notifications non lues
         if (intervenantConnecte?.id_intervenant) {
           try {
@@ -84,7 +84,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
                 }
               }
             );
-            
+
             if (response.data?.success && Array.isArray(response.data.data)) {
               const unread = response.data.data.filter((n: any) => !n.lu).length;
               setUnreadCount(unread);
@@ -104,13 +104,13 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   }, []);
 
   // Cartes de statistiques
-  const StatCard = ({ 
-    title, 
-    value, 
-    subtitle, 
-    color = 'blue', 
-    icon, 
-    loading = false 
+  const StatCard = ({
+    title,
+    value,
+    subtitle,
+    color = 'blue',
+    icon,
+    loading = false
   }: {
     title: string;
     value: string | number;
@@ -146,9 +146,9 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
       <Card className={`h-full border-1 ${colorClasses[color]}`}>
         <div className="flex align-items-start">
           {icon && (
-            <Avatar 
-              icon={icon} 
-              size="large" 
+            <Avatar
+              icon={icon}
+              size="large"
               className={`mr-3 ${colorClasses[color].replace('50', '100').replace('200', '300')}`}
             />
           )}
@@ -163,11 +163,11 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   };
 
   // En-tête personnalisé pour les onglets
-  const CustomTabHeader = ({ 
-    title, 
-    icon, 
-    badge, 
-    active 
+  const CustomTabHeader = ({
+    title,
+    icon,
+    badge,
+    active
   }: {
     title: string;
     icon: string;
@@ -180,9 +180,9 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
         {title}
       </span>
       {badge && badge > 0 && (
-        <Badge 
-          value={badge} 
-          className="ml-2" 
+        <Badge
+          value={badge}
+          className="ml-2"
           size="normal"
           severity="danger"
         />
@@ -194,8 +194,8 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
   if (loading) {
     return (
       <div className="dashboard-intervenant p-4">
-        <PageHeader 
-          title="Tableau de bord intervenant" 
+        <PageHeader
+          title="Tableau de bord intervenant"
           subtitle="Chargement..."
           breadcrumb={[
             { title: 'Accueil', path: '/' },
@@ -217,8 +217,8 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
 
   return (
     <div className="dashboard-intervenant p-4">
-      <PageHeader 
-        title={`Bonjour, ${intervenant?.prenom || 'Intervenant'}`} 
+      <PageHeader
+        title={`Bonjour, ${intervenant?.prenom || 'Intervenant'}`}
         subtitle="Gérez vos missions, factures et paiements en un seul endroit"
         breadcrumb={[
           { title: 'Accueil', path: '/' },
@@ -272,13 +272,13 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
 
       {/* Onglets Principaux */}
       <Card className="mt-4 shadow-2">
-        <TabView 
-          activeIndex={activeTab} 
+        <TabView
+          activeIndex={activeTab}
           onTabChange={(e) => setActiveTab(e.index)}
           panelContainerClassName="p-3"
         >
           {/* Tableau de Bord */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Tableau de bord"
@@ -289,8 +289,8 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
           >
             <div className="grid">
               <div className="col-12 lg:col-8">
-                <Card 
-                  title="Dernières factures" 
+                <Card
+                  title="Dernières factures"
                   subTitle="Vos factures récentes"
                   className="h-full"
                 >
@@ -298,8 +298,8 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
                 </Card>
               </div>
               <div className="col-12 lg:col-4">
-                <Card 
-                  title="Notifications récentes" 
+                <Card
+                  title="Notifications récentes"
                   subTitle={`${stats.notificationsNonLues} non lues`}
                   className="h-full"
                 >
@@ -335,7 +335,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
           </TabPanel>
 
           {/* Factures */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Factures"
@@ -349,7 +349,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
           </TabPanel>
 
           {/* Paiements */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Paiements"
@@ -358,13 +358,13 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
               />
             }
           >
-            <PaiementsEnAttente 
-              intervenantId={intervenant?.id_intervenant || null} 
+            <PaiementsEnAttente
+              intervenantId={intervenant?.id_intervenant || null}
             />
           </TabPanel>
 
           {/* Notifications */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Notifications"
@@ -383,16 +383,17 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
                   </p>
                 </div>
                 {stats.notificationsNonLues > 0 && (
-                  <Tag 
-                    value={`${stats.notificationsNonLues} non lue${stats.notificationsNonLues > 1 ? 's' : ''}`} 
-                    severity="warning" 
+                  <Tag
+                    value={`${stats.notificationsNonLues} non lue${stats.notificationsNonLues > 1 ? 's' : ''}`}
+                    severity="warning"
                   />
                 )}
               </div>
-              
+
               <div className="notification-container">
-                <NotificationBell 
-                  intervenantId={intervenant?.id_intervenant} 
+                <NotificationBell
+                  userId={intervenant?.id_intervenant}
+                  userType="intervenant"
                   onUnreadCountChange={setUnreadCount}
                 />
               </div>
@@ -400,7 +401,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
           </TabPanel>
 
           {/* Déclaration d'activité */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Déclaration"
@@ -413,7 +414,7 @@ const DashboardIntervenant: React.FC<DashboardIntervenantProps> = () => {
           </TabPanel>
 
           {/* Profil */}
-          <TabPanel 
+          <TabPanel
             header={
               <CustomTabHeader
                 title="Mon profil"
