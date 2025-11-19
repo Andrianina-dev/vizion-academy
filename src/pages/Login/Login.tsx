@@ -1,6 +1,6 @@
 // components/Login.tsx
 import React, { useState, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Message } from 'primereact/message';
 import AuthLayout from '../../components/layout/AuthLayout';
 import CustomInput from '../../components/ui/forms/customInput/CustomInput';
@@ -114,6 +114,16 @@ const Login: React.FC = () => {
           severity="secondary"
           size="large"
         />
+
+        <div className="text-center mt-6">
+          <p className="text-gray-600 mb-3">Vous n'avez pas encore de compte ?</p>
+          <Link
+            to="/ecole/ajouter"
+            className="text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 border border-blue-700 hover:border-transparent"
+          >
+            Ajoutez votre école
+          </Link>
+        </div>
       </div>
     </AuthLayout>
   );

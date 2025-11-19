@@ -32,7 +32,7 @@ const LoginIntervenant: React.FC = () => {
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginFormData> = {};
-    
+
     if (!formData.email) newErrors.email = "L'email est requis";
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "L'email n'est pas valide";
 
@@ -62,8 +62,17 @@ const LoginIntervenant: React.FC = () => {
       }
     } catch (error: any) {
       if (axios.isAxiosError(error)) {
-        const apiMsg = (error.response?.data as any)?.message;
-        setLoginError(apiMsg || 'Email ou mot de passe incorrect');
+        if (error.response?.status === 403) {
+          const body: any = error.response?.data || {};
+          if (body?.error === 'rejected') {
+            setLoginError("Votre profil a été rejeté par l'administrateur");
+          } else {
+            setLoginError('Votre profil est en attente de validation');
+          }
+        } else {
+          const apiMsg = (error.response?.data as any)?.message;
+          setLoginError(apiMsg || 'Email ou mot de passe incorrect');
+        }
       } else {
         setLoginError('Erreur lors de la connexion');
       }
@@ -78,8 +87,8 @@ const LoginIntervenant: React.FC = () => {
   };
 
   return (
-    <AuthLayout 
-      title="Portail Expert" 
+    <AuthLayout
+      title="Portail Expert"
       subtitle="Accès réservé aux intervenants pédagogiques"
       variant="split"
       showInfoPanel={true}
@@ -87,10 +96,10 @@ const LoginIntervenant: React.FC = () => {
     >
       <form onSubmit={handleSubmit} className="flex flex-column gap-4 w-full">
         {loginError && (
-          <Message 
-            severity="error" 
-            text={loginError} 
-            className="w-full border-round-2xl border-red-200 bg-red-50" 
+          <Message
+            severity="error"
+            text={loginError}
+            className="w-full border-round-2xl border-red-200 bg-red-50"
           />
         )}
 
@@ -128,24 +137,24 @@ const LoginIntervenant: React.FC = () => {
 
         <div className="flex align-items-center justify-content-between mb-4">
           <div className="flex align-items-center">
-            <Checkbox 
-              inputId="remember" 
-              checked={rememberMe} 
+            <Checkbox
+              inputId="remember"
+              checked={rememberMe}
               onChange={(e) => setRememberMe(!!e.checked)}
               className="mr-2"
             />
-            <label 
-              htmlFor="remember" 
+            <label
+              htmlFor="remember"
               className="text-600 text-sm cursor-pointer select-none"
             >
               Maintenir la session
             </label>
           </div>
-          
-          <Button 
-            type="button" 
-            link 
-            label="Accès perdu ?" 
+
+          <Button
+            type="button"
+            link
+            label="Accès perdu ?"
             onClick={() => navigate('/forgot-password')}
             className="p-0 text-primary text-sm font-medium"
           />
@@ -168,9 +177,9 @@ const LoginIntervenant: React.FC = () => {
         </Divider>
 
         <div className="text-center">
-          <Button 
-            type="button" 
-            label="Rejoindre notre Réseau d'Experts" 
+          <Button
+            type="button"
+            label="Rejoindre notre Réseau d'Experts"
             onClick={() => navigate('/register-intervenant')}
             className="p-0 text-primary text-sm font-semibold border-bottom-1 border-primary border-300 hover:border-primary-500 transition-colors rounded-none"
             text
@@ -178,8 +187,8 @@ const LoginIntervenant: React.FC = () => {
         </div>
 
         <div className="text-center mt-3">
-          <Button 
-            type="button" 
+          <Button
+            type="button"
             icon="pi pi-arrow-left"
             label="Retour au site principal"
             onClick={() => navigate('/')}

@@ -7,10 +7,14 @@ import DashboardIntervenant from './pages/DashboardIntervenant/DashboardInterven
 import SupportPage from './pages/Support/SupportPage';
 import SiteVitrine from './pages/VitrinePublique/siteVitrine';
 import LoginIntervenant from './pages/Login/LoginIntervenant';
+import AjouterIntervenant from './pages/Intervenant/ajouterIntervenant';
 import LoginPage from './features/admin/pages/LoginPage';
 import AdminDashboard from './features/admin/pages/DashboardPage';
 import AdminRegisterPage from './features/admin/pages/AdminRegisterPage';
 import PaiementsPage from './features/admin/pages/PaiementsPage';
+import IntervenantsPendingPage from './features/admin/pages/IntervenantsPendingPage';
+import AdminLayout from './features/admin/components/AdminLayout';
+import CreateEcole from './pages/Ecole/CreateEcole';
 import { AuthProvider, useAuth } from './features/admin/context/AuthContext';
 import "primereact/resources/themes/lara-light-cyan/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -37,9 +41,9 @@ const AdminRoutes = () => {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+        <Route path="/" element={<Navigate to="login" replace />} />
         <Route
-          path="/admin/login"
+          path="login"
           element={
             <AuthRoute>
               <LoginPage />
@@ -47,7 +51,7 @@ const AdminRoutes = () => {
           }
         />
         <Route
-          path="/admin/register"
+          path="register"
           element={
             <AuthRoute>
               <AdminRegisterPage />
@@ -55,7 +59,7 @@ const AdminRoutes = () => {
           }
         />
         <Route
-          path="/admin/dashboard"
+          path="dashboard"
           element={
             <ProtectedRoute>
               <AdminDashboard />
@@ -63,10 +67,20 @@ const AdminRoutes = () => {
           }
         />
         <Route
-          path="/admin/paiements"
+          path="paiements"
           element={
             <ProtectedRoute>
               <PaiementsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="intervenants/en-attente"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <IntervenantsPendingPage />
+              </AdminLayout>
             </ProtectedRoute>
           }
         />
@@ -84,6 +98,8 @@ function App() {
           <Route path="/" element={<SiteVitrine />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login-intervenant" element={<LoginIntervenant />} />
+          <Route path="/register-intervenant" element={<AjouterIntervenant />} />
+          <Route path="/ecole/ajouter" element={<CreateEcole />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard-intervenant" element={<DashboardIntervenant />} />
           <Route path="/support" element={<SupportPage />} />

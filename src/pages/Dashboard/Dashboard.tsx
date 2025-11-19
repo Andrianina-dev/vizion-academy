@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout/DashboardLayout';
 import MissionTable from '../../components/MissionTable';
 import ListeIntervenantsFavoris from '../../components/FavorisIntervenant'; // Ajout de l'import
@@ -87,6 +87,15 @@ const Dashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {!ecole && (
+            <div className="max-w-30rem mx-auto bg-blue-50 border border-blue-200 text-blue-900 p-4 border-round-lg">
+              <p className="mb-3">Aucune école n'est encore associée.</p>
+              <Link to="/ecole/ajouter" className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 border-round">
+                Ajoutez votre école
+              </Link>
             </div>
           )}
         </div>

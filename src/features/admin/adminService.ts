@@ -11,6 +11,14 @@ declare module 'axios' {
   }
 }
 
+export interface IntervenantPending {
+  id_intervenant: string;
+  nom_intervenant: string;
+  prenom_intervenant: string;
+  email_login: string;
+  statut_validation: number;
+}
+
 interface AdminCredentials {
   email: string;
   password: string;
@@ -62,7 +70,7 @@ class AdminService {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_URL ?
         `${import.meta.env.VITE_API_URL}/api` :
-        'http://localhost:8000/api',
+        'http://127.0.0.1:8000/api',
       withCredentials: true,
       // Ne pas définir les en-têtes par défaut ici, ils seront gérés par l'intercepteur
       headers: {},
@@ -173,6 +181,21 @@ class AdminService {
           data: error.response?.data,
           message: error.message
         });
+
+        // Fallback automatique: si réseau indisponible vers l'URL distante, basculer sur 127.0.0.1 et réessayer une fois
+        if ((error.code === 'ERR_NETWORK' || !error.response) && this.api.defaults.baseURL &&
+          typeof this.api.defaults.baseURL === 'string' &&
+          (import.meta.env.VITE_API_URL && this.api.defaults.baseURL.includes(import.meta.env.VITE_API_URL))) {
+          if (!originalRequest?._retryFallback) {
+            originalRequest._retryFallback = true;
+            this.api.defaults.baseURL = 'http://127.0.0.1:8000/api';
+            try {
+              return await this.api.request(originalRequest);
+            } catch (e) {
+              // continue to normal error handling below
+            }
+          }
+        }
 
         // Gestion des erreurs 401 (Non autorisé)
         if (error.response?.status === 401) {
@@ -650,6 +673,89 @@ class AdminService {
       };
     }
   }
+
+
+  async getPendingIntervenants(): Promise<IntervenantPending[]> {
+    try {
+      const response = await this.api.get('/admin/intervenants/pending', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        withCredentials: true
+      });
+
+      let data = response.data as any;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { }
+      }
+
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+      return (items || []).map((it: any) => ({
+        id_intervenant: it.id_intervenant || it.id || '',
+        nom_intervenant: it.nom_intervenant || '',
+        prenom_intervenant: it.prenom_intervenant || '',
+        email_login: it.email_login || '',
+        statut_validation: typeof it.statut_validation === 'number' ? it.statut_validation : Number(it.statut_validation ?? 0),
+      }));
+    } catch (e) {
+      console.error('Erreur getPendingIntervenants', e);
+      return [];
+    }
+  }
+
+  async approveIntervenant(id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.put(`/admin/intervenants/${id}/approve`, {}, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        withCredentials: true
+      });
+
+      let data = response.data as any;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { }
+      }
+
+      if (response.status === 200 && data?.success) {
+        return { success: true, message: data.message || 'Intervenant validé avec succès' };
+      }
+      return { success: false, message: data?.message || 'Validation échouée' };
+    } catch (e) {
+      console.error('Erreur approveIntervenant', e);
+      return { success: false, message: 'Erreur réseau' };
+    }
+  }
+
+  async rejectIntervenant(id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await this.api.put(`/admin/intervenants/${id}/reject`, {}, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        withCredentials: true
+      });
+
+      let data = response.data as any;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch { }
+      }
+
+      if (response.status === 200 && data?.success) {
+        return { success: true, message: data.message || 'Intervenant rejeté avec succès' };
+      }
+      return { success: false, message: data?.message || 'Rejet échoué' };
+    } catch (e) {
+      console.error('Erreur rejectIntervenant', e);
+      return { success: false, message: 'Erreur réseau' };
+    }
+  }
+
 }
 
 // Créer et exporter une seule instance du service

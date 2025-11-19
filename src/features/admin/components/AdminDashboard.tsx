@@ -240,6 +240,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
             case 'dashboard':
                 navigate('/admin/dashboard');
                 break;
+            case 'validation':
+                navigate('/admin/intervenants/en-attente');
+                break;
             // Ajoutez d'autres cas de navigation ici si nécessaire
             default:
                 console.log(`Navigation vers: ${key}`);

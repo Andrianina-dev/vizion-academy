@@ -25,6 +25,25 @@ interface LoginResponse {
   ecole?: Ecole;
 }
 
+// Création d'école
+interface CreateEcoleData {
+  nom_ecole: string;
+  email: string;
+  mot_de_passe: string;
+  telephone?: string;
+  adresse?: string;
+}
+
+interface CreateEcoleResponse {
+  success: boolean;
+  message: string;
+  ecole?: {
+    id_ecole: string;
+    nom_ecole: string;
+    email: string;
+  };
+}
+
 export const loginEcole = async (data: LoginData): Promise<LoginResponse> => {
   try {
     // Initialiser le cookie CSRF (Sanctum) si nécessaire
@@ -50,6 +69,55 @@ export const loginEcole = async (data: LoginData): Promise<LoginResponse> => {
   } catch (error: any) {
     console.error('Erreur login:', error);
     throw error.response?.data?.message || 'Erreur de connexion';
+  }
+};
+
+// Créer une école
+export const createEcole = async (data: CreateEcoleData): Promise<CreateEcoleResponse> => {
+  try {
+    console.log('Données envoyées à l\'API:', JSON.stringify(data, null, 2));
+
+    // CSRF si nécessaire
+    try {
+      await axios.get(`${API_BASE}/sanctum/csrf-cookie`, { withCredentials: true });
+    } catch (error) {
+      console.error('Erreur CSRF:', error);
+    }
+
+    const response = await axios.post(`${API_BASE}/api/ecole`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      withCredentials: true,
+    });
+
+    console.log('Réponse de l\'API:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Erreur détaillée:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      validationErrors: error.response?.data?.errors,
+      url: error.config?.url,
+      method: error.config?.method,
+      requestData: error.config?.data ? JSON.parse(error.config.data) : null
+    });
+
+    // Si c'est une erreur de validation, on extrait les messages d'erreur
+    if (error.response?.status === 422) {
+      const errorMessages = error.response.data?.errors
+        ? Object.entries(error.response.data.errors)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join('\n')
+        : 'Erreur de validation inconnue';
+
+      throw new Error(`Erreur de validation :\n${errorMessages}`);
+    }
+
+    // Pour les autres erreurs, on renvoie un message générique
+    throw new Error(error.response?.data?.message || "Une erreur est survenue lors de la création de l'école");
   }
 };
 
