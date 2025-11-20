@@ -20,8 +20,9 @@ import {
     FaChevronDown
 } from 'react-icons/fa';
 
-interface AdminDashboardProps {
-    admin: AdminUser;
+export interface AdminDashboardProps {
+  admin: AdminUser;
+  onLogout: () => void; // Ajoutez cette ligne
 }
 
 interface StatCard {

@@ -11,16 +11,16 @@ const DashboardPage = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // État dérivé pour gérer l'affichage du chargement
   const showLoading = loading || !authChecked || !admin;
 
   useEffect(() => {
-    console.log('DashboardPage - État d\'authentification:', { 
-      isAuthenticated, 
-      loading, 
+    console.log('DashboardPage - État d\'authentification:', {
+      isAuthenticated,
+      loading,
       hasAdmin: !!admin,
-      currentPath: location.pathname 
+      currentPath: location.pathname
     });
 
     // Ne pas vérifier l'authentification si déjà vérifiée
@@ -32,17 +32,17 @@ const DashboardPage = () => {
     // Si le chargement est terminé
     if (!loading) {
       console.log('Vérification de l\'authentification terminée');
-      
+
       // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
       if (!isAuthenticated) {
         console.log('Utilisateur non authentifié, redirection vers /admin/login');
         // Ne pas utiliser replace: true pour permettre le retour en arrière
-        navigate('/admin/login', { 
+        navigate('/admin/login', {
           state: { from: location.pathname }
         });
         return;
       }
-      
+
       // Si l'utilisateur est authentifié mais que les données admin ne sont pas encore chargées
       if (isAuthenticated && !admin) {
         console.log('Authentifié mais données admin manquantes, tentative de récupération...');
@@ -63,7 +63,7 @@ const DashboardPage = () => {
           });
         return;
       }
-      
+
       // Tout est bon, on peut afficher le tableau de bord
       console.log('Utilisateur authentifié, affichage du tableau de bord');
       setAuthChecked(true);
@@ -73,17 +73,18 @@ const DashboardPage = () => {
   // Afficher le spinner de chargement pendant le chargement initial
   // ou pendant la vérification de l'authentification
   if (showLoading) {
-    console.log('Affichage du spinner de chargement:', { 
-      loading, 
-      authChecked, 
-      hasAdmin: !!admin 
+    console.log('Affichage du spinner de chargement:', {
+      loading,
+      authChecked,
+      hasAdmin: !!admin
     });
     return <LoadingSpinner />;
   }
 
   // Si on arrive ici, c'est que tout est prêt
   console.log('Rendu du composant AdminDashboard');
-  return <AdminDashboard admin={admin} onLogout={logout} />;
+  return <AdminDashboard admin={admin} onLogout={(): void => logout()} />;
 };
+
 
 export default DashboardPage;
