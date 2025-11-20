@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import type { Intervenant } from '../../services/intervenantService';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 
 // Configuration de base d'Axios pour les requêtes API
@@ -686,13 +687,35 @@ class AdminService {
       });
 
       let data = response.data as any;
+      console.log('Réponse brute de l\'API getPendingIntervenants:', data);
+
+      // Si data est une string, la parser en JSON
       if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch { }
+        try {
+          data = JSON.parse(data);
+        } catch (parseError) {
+          console.error('Erreur parsing JSON:', parseError);
+          return [];
+        }
       }
 
-      const items = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-      return (items || []).map((it: any) => ({
-        id_intervenant: it.id_intervenant || it.id || '',
+      // Gérer différentes structures de réponse possibles
+      if (data.success && data.data) {
+        data = data.data;
+      } else if (data.data) {
+        data = data.data;
+      }
+
+      console.log('Données après traitement:', data);
+
+      // S'assurer que data est un tableau
+      if (!Array.isArray(data)) {
+        console.warn('Les données ne sont pas un tableau:', data);
+        return [];
+      }
+
+      return data.map(it => ({
+        id_intervenant: it.id_intervenant,
         nom_intervenant: it.nom_intervenant || '',
         prenom_intervenant: it.prenom_intervenant || '',
         email_login: it.email_login || '',
@@ -700,6 +723,53 @@ class AdminService {
       }));
     } catch (e) {
       console.error('Erreur getPendingIntervenants', e);
+      return [];
+    }
+  }
+
+  async getAllIntervenants(): Promise<Intervenant[]> {
+    try {
+      const response = await this.api.get('/admin/intervenants/all', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        withCredentials: true
+      });
+
+      let data = response.data as any;
+      console.log('Réponse brute de l\'API getAllIntervenants:', data);
+
+      // Si data est une string, la parser en JSON
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (parseError) {
+          console.error('Erreur parsing JSON:', parseError);
+          return [];
+        }
+      }
+
+      // Gérer différentes structures de réponse possibles
+      if (data.success && data.data) {
+        data = data.data;
+      } else if (data.data) {
+        data = data.data;
+      }
+
+      console.log('Données après traitement:', data);
+      console.log('Type de données:', typeof data);
+      console.log('Est un tableau?', Array.isArray(data));
+
+      // S'assurer que data est un tableau
+      if (!Array.isArray(data)) {
+        console.warn('Les données ne sont pas un tableau:', data);
+        return [];
+      }
+
+      return data as Intervenant[];
+    } catch (e) {
+      console.error('Erreur getAllIntervenants', e);
       return [];
     }
   }

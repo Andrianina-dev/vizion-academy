@@ -20,6 +20,26 @@ export interface Intervenant {
   nom_intervenant: string;
   prenom_intervenant: string;
   email_login: string;
+  telephone?: string;
+  statut_validation?: number;
+  date_creation?: string;
+  date_derniere_connexion?: string;
+  specialite?: string;
+  bio_intervenant?: string;
+  domaines?: string[] | null;
+  langues?: string[] | null;
+  ville?: string;
+  diplome?: string;
+  photo_intervenant?: string;
+  cv?: string;
+  video?: string;
+  competences?: string;
+  documents?: string[] | null;
+  raison_rejet?: string;
+  disponibilite?: boolean | number;
+  photo_url?: string;
+  cv_url?: string;
+  documents_url?: string[] | null;
 }
 
 export interface IntervenantLoginResponse {

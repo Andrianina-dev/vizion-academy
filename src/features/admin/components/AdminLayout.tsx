@@ -3,7 +3,7 @@ import { Menubar } from 'primereact/menubar';
 import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { PanelMenu } from 'primereact/panelmenu';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface MenuItem {
@@ -14,7 +14,7 @@ interface MenuItem {
 }
 
 interface AdminLayoutProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
@@ -28,7 +28,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 navigate('/admin/dashboard');
                 break;
             case 'users/intervenants':
-                console.log('Navigate to: users/intervenants');
+                navigate('/admin/intervenants/tous');
                 break;
             case 'users/ecoles':
                 console.log('Navigate to: users/ecoles');
@@ -169,7 +169,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 )}
 
                 <div className="flex-1 p-4">
-                    {children}
+                    {children || <Outlet />}
                 </div>
             </div>
         </div>

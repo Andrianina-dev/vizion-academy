@@ -1,51 +1,27 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { classNames } from 'primereact/utils';
 import type { AdminUser } from '../adminService';
 
 // PrimeReact Components
-import { Menubar } from 'primereact/menubar';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
-// import { Badge } from 'primereact/badge';
-import { Avatar } from 'primereact/avatar';
+import { Card } from 'primereact/card';
+import { Chart } from 'primereact/chart';
 import { Divider } from 'primereact/divider';
 import { ProgressBar } from 'primereact/progressbar';
-import { Chart } from 'primereact/chart';
-// import { DataTable } from 'primereact/datatable';
-// import { Column } from 'primereact/column';
 import { Timeline } from 'primereact/timeline';
-import { PanelMenu } from 'primereact/panelmenu';
 
 // Icons
 import {
-    FaTachometerAlt,
     FaUsers,
     FaSchool,
     FaFileContract,
     FaMoneyBillWave,
-    FaCheckCircle,
-    FaTrophy,
-    FaImages,
-    // FaBell,
-    // FaSignOutAlt,
-    // FaBars,
     FaChevronUp,
-    FaChevronDown,
-    FaUserCheck,
-    // FaChartLine
+    FaChevronDown
 } from 'react-icons/fa';
 
 interface AdminDashboardProps {
     admin: AdminUser;
-    onLogout: () => void;
-}
-
-interface MenuItem {
-    label: string;
-    icon: React.ReactNode;
-    items?: MenuItem[];
-    command?: () => void;
 }
 
 interface StatCard {
@@ -65,70 +41,7 @@ interface Activity {
     type: 'success' | 'info' | 'warn' | 'error';
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
-    const [sidebarVisible, setSidebarVisible] = useState(true);
-    const [selectedKey, setSelectedKey] = useState('dashboard');
-    const navigate = useNavigate();
-
-    const menuItems: MenuItem[] = useMemo(() => [
-        {
-            label: 'Tableau de bord',
-            icon: <FaTachometerAlt className="mr-2" />,
-            command: () => handleMenuClick('dashboard')
-        },
-        {
-            label: 'Gestion Utilisateurs',
-            icon: <FaUsers className="mr-2" />,
-            items: [
-                {
-                    label: 'Intervenants',
-                    icon: <FaUserCheck className="mr-2" />,
-                    command: () => handleMenuClick('users/intervenants')
-                },
-                {
-                    label: 'Écoles',
-                    icon: <FaSchool className="mr-2" />,
-                    command: () => handleMenuClick('users/ecoles')
-                }
-            ]
-        },
-        {
-            label: 'Missions',
-            icon: <FaFileContract className="mr-2" />,
-            command: () => handleMenuClick('missions')
-        },
-        {
-            label: 'Finances',
-            icon: <FaMoneyBillWave className="mr-2" />,
-            items: [
-                {
-                    label: 'Factures',
-                    icon: <FaFileContract className="mr-2" />,
-                    command: () => handleMenuClick('finances/factures')
-                },
-                {
-                    label: 'Paiements',
-                    icon: <FaMoneyBillWave className="mr-2" />,
-                    command: () => window.location.href = '/admin/paiements'
-                }
-            ]
-        },
-        {
-            label: 'Validation Profils',
-            icon: <FaCheckCircle className="mr-2" />,
-            command: () => handleMenuClick('validation')
-        },
-        {
-            label: 'Gestion Challenges',
-            icon: <FaTrophy className="mr-2" />,
-            command: () => handleMenuClick('challenges')
-        },
-        {
-            label: 'Gestion Contenus',
-            icon: <FaImages className="mr-2" />,
-            command: () => handleMenuClick('content')
-        }
-    ], []);
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin }) => {
 
     const stats: StatCard[] = useMemo(() => [
         {
@@ -229,26 +142,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
         };
     }, []);
 
-    const handleMenuClick = (key: string) => {
-        setSelectedKey(key);
-
-        // Gestion de la navigation
-        switch (key) {
-            case 'finances/paiements':
-                navigate('/admin/paiements');
-                break;
-            case 'dashboard':
-                navigate('/admin/dashboard');
-                break;
-            case 'validation':
-                navigate('/admin/intervenants/en-attente');
-                break;
-            // Ajoutez d'autres cas de navigation ici si nécessaire
-            default:
-                console.log(`Navigation vers: ${key}`);
-        }
-    };
-
     const getActivityIcon = (type: Activity['type']) => {
         const icons = {
             success: 'text-green-500',
@@ -337,7 +230,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
                                     icon="pi pi-check-circle"
                                     label="Valider profils"
                                     className="w-full p-button-outlined p-button-success justify-content-start"
-                                    onClick={() => handleMenuClick('validation')}
                                 />
                             </div>
                             <div className="col-12 md:col-6 mb-3">
@@ -345,7 +237,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
                                     icon="pi pi-file"
                                     label="Voir missions"
                                     className="w-full p-button-outlined justify-content-start"
-                                    onClick={() => handleMenuClick('missions')}
                                 />
                             </div>
                             <div className="col-12 md:col-6">
@@ -353,7 +244,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
                                     icon="pi pi-dollar"
                                     label="Paiements"
                                     className="w-full p-button-outlined justify-content-start"
-                                    onClick={() => handleMenuClick('finances/paiements')}
                                 />
                             </div>
                             <div className="col-12 md:col-6">
@@ -397,91 +287,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ admin, onLogout }) => {
         </div>
     );
 
-    const startContent = (
-        <div className="flex align-items-center">
-            <Button
-                icon="pi pi-bars"
-                className="p-button-text p-button-plain mr-3"
-                onClick={() => setSidebarVisible(!sidebarVisible)}
-            />
-            <div className="flex align-items-center">
-                <i className="pi pi-star-fill text-blue-500 text-2xl mr-2"></i>
-                <span className="text-xl font-bold text-900">Vizion Academy</span>
-            </div>
-        </div>
-    );
-
-    const endContent = (
-        <div className="flex align-items-center gap-3">
-            <Button
-                icon="pi pi-bell"
-                className="p-button-text p-button-plain relative"
-                badge="5"
-                badgeClassName="p-badge-danger"
-            />
-            <div className="flex align-items-center gap-2">
-                <Avatar
-                    icon="pi pi-user"
-                    shape="circle"
-                    image={admin.avatar}
-                    className="mr-2"
-                />
-                <div className="hidden md:flex flex-column">
-                    <span className="font-medium">{admin.nom_admin}</span>
-                    <small className="text-500">Administrateur</small>
-                </div>
-            </div>
-            <Button
-                icon="pi pi-sign-out"
-                className="p-button-text p-button-plain"
-                tooltip="Déconnexion"
-                tooltipOptions={{ position: 'bottom' }}
-                onClick={onLogout}
-            />
-        </div>
-    );
-
-    return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <Menubar start={startContent} end={endContent} className="shadow-2 sticky top-0 z-5" />
-
-            <div className="flex">
-                {/* Sidebar */}
-                {sidebarVisible && (
-                    <div className="w-64 h-screen sticky top-0 bg-white shadow-2 z-4">
-                        <div className="p-4 border-bottom-1 surface-border">
-                            <h3 className="text-lg font-semibold text-900">Navigation</h3>
-                        </div>
-                        <PanelMenu model={menuItems} className="w-full border-none" />
-                    </div>
-                )}
-
-                {/* Main Content */}
-                <div className="flex-1">
-                    {selectedKey === 'dashboard' ? renderDashboard() : (
-                        <div className="p-4">
-                            <div className="flex align-items-center justify-content-between mb-4">
-                                <h1 className="text-3xl font-bold text-gray-900">
-                                    {menuItems.find(item => item.label === selectedKey)?.label || selectedKey}
-                                </h1>
-                            </div>
-                            <Divider />
-                            <Card>
-                                <div className="text-center py-8">
-                                    <i className="pi pi-cog text-6xl text-500 mb-4"></i>
-                                    <h3 className="text-xl font-semibold mb-2">Section en développement</h3>
-                                    <p className="text-600">
-                                        Le contenu de la section "{selectedKey}" sera disponible prochainement.
-                                    </p>
-                                </div>
-                            </Card>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+    return renderDashboard();
 };
 
 export default AdminDashboard;

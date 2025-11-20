@@ -13,6 +13,7 @@ import AdminDashboard from './features/admin/pages/DashboardPage';
 import AdminRegisterPage from './features/admin/pages/AdminRegisterPage';
 import PaiementsPage from './features/admin/pages/PaiementsPage';
 import IntervenantsPendingPage from './features/admin/pages/IntervenantsPendingPage';
+import IntervenantsPage from './features/admin/pages/IntervenantsPage';
 import AdminLayout from './features/admin/components/AdminLayout';
 import CreateEcole from './pages/Ecole/CreateEcole';
 import { AuthProvider, useAuth } from './features/admin/context/AuthContext';
@@ -58,32 +59,18 @@ const AdminRoutes = () => {
             </AuthRoute>
           }
         />
-        <Route
-          path="dashboard"
-          element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="paiements"
-          element={
-            <ProtectedRoute>
-              <PaiementsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="intervenants/en-attente"
-          element={
-            <ProtectedRoute>
-              <AdminLayout>
-                <IntervenantsPendingPage />
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-        />
+
+        {/* Routes admin protégées avec un seul AdminLayout */}
+        <Route path="" element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }>
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="paiements" element={<PaiementsPage />} />
+          <Route path="intervenants/en-attente" element={<IntervenantsPendingPage />} />
+          <Route path="intervenants/tous" element={<IntervenantsPage />} />
+        </Route>
       </Routes>
     </AuthProvider>
   );
